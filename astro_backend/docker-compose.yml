@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db:
+    # БЕРЕМ ЭТОТ ОБРАЗ: Postgres 17 + Vector Search из коробки
+    image: pgvector/pgvector:pg17
+    container_name: astro_postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=astro_pass
+      - POSTGRES_DB=astro_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
