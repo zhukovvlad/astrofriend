@@ -41,7 +41,7 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 stars-bg">
-      <div className="fixed inset-0 bg-gradient-to-br from-background via-background to-accent/10 -z-10" />
+      <div className="fixed inset-0 bg-linear-to-br from-background via-background to-accent/10 -z-10" />
       
       <motion.div
         className="fixed top-32 right-32 w-80 h-80 bg-accent/20 rounded-full blur-3xl"
@@ -68,7 +68,7 @@ export default function Register() {
         <Card className="w-full max-w-md glass glow-pink">
           <CardHeader className="text-center space-y-2">
             <motion.div
-              className="mx-auto w-16 h-16 bg-gradient-to-br from-accent to-primary rounded-2xl flex items-center justify-center mb-4"
+              className="mx-auto w-16 h-16 bg-linear-to-br from-accent to-primary rounded-2xl flex items-center justify-center mb-4"
               whileHover={{ scale: 1.1 }}
               transition={{ duration: 0.3 }}
             >
@@ -96,8 +96,10 @@ export default function Register() {
               )}
 
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <label htmlFor="email" className="sr-only">Email address</label>
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
                 <Input
+                  id="email"
                   type="email"
                   placeholder="your@email.com"
                   value={email}
@@ -108,8 +110,10 @@ export default function Register() {
               </div>
 
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <label htmlFor="password" className="sr-only">Password</label>
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
                 <Input
+                  id="password"
                   type="password"
                   placeholder="Password"
                   value={password}
@@ -120,8 +124,10 @@ export default function Register() {
               </div>
 
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <label htmlFor="confirmPassword" className="sr-only">Confirm password</label>
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
                 <Input
+                  id="confirmPassword"
                   type="password"
                   placeholder="Confirm Password"
                   value={confirmPassword}
@@ -133,7 +139,7 @@ export default function Register() {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-accent to-primary hover:opacity-90 transition-opacity"
+                className="w-full bg-linear-to-r from-accent to-primary hover:opacity-90 transition-opacity"
                 disabled={isLoading}
               >
                 {isLoading ? (

@@ -24,7 +24,7 @@ function TypingIndicator() {
       className="flex items-center gap-3 p-4"
     >
       <Avatar className="w-8 h-8">
-        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-xs">
+        <AvatarFallback className="bg-linear-to-br from-primary to-accent text-xs">
           ✨
         </AvatarFallback>
       </Avatar>
@@ -57,8 +57,8 @@ function MessageBubble({ message, isUser }: { message: ChatMessage; isUser: bool
       className={`flex items-end gap-2 ${isUser ? "flex-row-reverse" : ""}`}
     >
       {!isUser && (
-        <Avatar className="w-8 h-8 flex-shrink-0">
-          <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-xs">
+        <Avatar className="w-8 h-8 shrink-0">
+          <AvatarFallback className="bg-linear-to-br from-primary to-accent text-xs">
             ✨
           </AvatarFallback>
         </Avatar>
@@ -67,7 +67,7 @@ function MessageBubble({ message, isUser }: { message: ChatMessage; isUser: bool
       <div
         className={`max-w-[80%] px-4 py-3 rounded-2xl ${
           isUser
-            ? "bg-gradient-to-r from-primary to-accent text-white rounded-br-none"
+            ? "bg-linear-to-r from-primary to-accent text-white rounded-br-none"
             : "glass rounded-tl-none"
         }`}
       >
@@ -81,13 +81,29 @@ function MessageBubble({ message, isUser }: { message: ChatMessage; isUser: bool
       </div>
       
       {isUser && (
-        <Avatar className="w-8 h-8 flex-shrink-0">
+        <Avatar className="w-8 h-8 shrink-0">
           <AvatarFallback className="bg-secondary text-xs">You</AvatarFallback>
         </Avatar>
       )}
     </motion.div>
   );
 }
+
+// Helper function to deduplicate messages
+const deduplicateMessages = (sessionHistory: ChatMessage[], optimisticMessages: ChatMessage[]): ChatMessage[] => {
+  // Create a set of unique message signatures from session history
+  const historySignatures = new Set(
+    sessionHistory.map(msg => `${msg.role}:${msg.content}:${msg.timestamp || ''}`)
+  );
+  
+  // Filter out optimistic messages that are already in session history
+  const uniqueOptimisticMessages = optimisticMessages.filter(msg => {
+    const signature = `${msg.role}:${msg.content}:${msg.timestamp || ''}`;
+    return !historySignatures.has(signature);
+  });
+  
+  return [...sessionHistory, ...uniqueOptimisticMessages];
+};
 
 export default function Chat() {
   const { boyfriendId } = useParams<{ boyfriendId: string }>();
@@ -106,14 +122,15 @@ export default function Chat() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Get current session's messages
+  // Get current session's messages with deduplication
   const currentSession = sessions?.find(s => s.id === currentSessionId);
   const displayMessages = currentSessionId 
-    ? [...(currentSession?.history || []), ...localMessages]
+    ? deduplicateMessages(currentSession?.history || [], localMessages)
     : localMessages;
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
+    // The ref now points directly to the viewport element
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -164,6 +181,9 @@ export default function Chat() {
       };
       
       setLocalMessages(prev => [...prev, aiMessage]);
+      
+      // Note: Messages will be automatically deduped when sessions refetch
+      // The deduplicateMessages function will prevent duplicates
     } catch (error) {
       // Remove optimistic message on error
       setLocalMessages(prev => prev.filter(m => m !== userMessage));
@@ -210,7 +230,7 @@ export default function Chat() {
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="flex-shrink-0 glass border-b border-border/50 px-4 py-3">
+      <header className="shrink-0 glass border-b border-border/50 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button
@@ -228,7 +248,7 @@ export default function Chat() {
             </Link>
             
             <Avatar className="w-10 h-10">
-              <AvatarFallback className="bg-gradient-to-br from-primary to-accent">
+              <AvatarFallback className="bg-linear-to-br from-primary to-accent">
                 ✨
               </AvatarFallback>
             </Avatar>
@@ -297,7 +317,7 @@ export default function Chat() {
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                          <MessageSquare className="w-4 h-4 shrink-0" />
                           <span className="text-sm truncate">
                             {session.title || "New Chat"}
                           </span>
@@ -330,7 +350,7 @@ export default function Chat() {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", damping: 15 }}
-                    className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4"
+                    className="w-20 h-20 rounded-full bg-linear-to-br from-primary to-accent flex items-center justify-center mb-4"
                   >
                     <Sparkles className="w-10 h-10 text-white" />
                   </motion.div>
@@ -358,7 +378,7 @@ export default function Chat() {
           </ScrollArea>
 
           {/* Input Area */}
-          <div className="flex-shrink-0 p-4 glass border-t border-border/50">
+          <div className="shrink-0 p-4 glass border-t border-border/50">
             <form onSubmit={handleSend} className="flex gap-2">
               <Input
                 ref={inputRef}
@@ -371,7 +391,7 @@ export default function Chat() {
               <Button
                 type="submit"
                 size="icon"
-                className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                className="bg-linear-to-r from-primary to-accent hover:opacity-90"
                 disabled={!message.trim() || sendMessage.isPending}
               >
                 {sendMessage.isPending ? (

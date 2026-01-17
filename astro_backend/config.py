@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
     
+    # Cookie settings
+    cookie_name: str = "access_token"
+    cookie_secure: bool = False  # Set to True in production with HTTPS
+    cookie_httponly: bool = True
+    cookie_samesite: str = "lax"  # "strict", "lax", or "none"
+    cookie_domain: str | None = None  # Set to your domain in production
+    
     # Google AI
     google_api_key: str = ""
     gemini_model: str = "gemini-1.5-flash"

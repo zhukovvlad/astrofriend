@@ -91,7 +91,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-50 glass border-b border-border/50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary to-accent flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-xl font-bold text-gradient">Astro-Soulmate</h1>
@@ -120,7 +120,7 @@ export default function Dashboard() {
           
           <Button 
             onClick={() => setShowModal(true)}
-            className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            className="bg-linear-to-r from-primary to-accent hover:opacity-90"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create New
@@ -157,7 +157,7 @@ export default function Dashboard() {
             </p>
             <Button 
               onClick={() => setShowModal(true)}
-              className="bg-gradient-to-r from-primary to-accent"
+              className="bg-linear-to-r from-primary to-accent"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Your First Soulmate
@@ -179,7 +179,7 @@ export default function Dashboard() {
                       <CardHeader className="flex flex-row items-center gap-4">
                         <Avatar className="w-14 h-14">
                           <AvatarFallback 
-                            className={`bg-gradient-to-br ${getRandomGradient(bf.id)} text-white text-xl`}
+                            className={`bg-linear-to-br ${getRandomGradient(bf.id)} text-white text-xl`}
                           >
                             {getZodiacSign(bf.birth_data.month, bf.birth_data.day)}
                           </AvatarFallback>
@@ -318,10 +318,13 @@ export default function Dashboard() {
                           min="0"
                           max="23"
                           value={formData.birth_data.hour}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            birth_data: { ...formData.birth_data, hour: parseInt(e.target.value) || 12 }
-                          })}
+                          onChange={(e) => {
+                            const parsed = parseInt(e.target.value, 10);
+                            setFormData({
+                              ...formData,
+                              birth_data: { ...formData.birth_data, hour: Number.isNaN(parsed) ? 12 : parsed }
+                            });
+                          }}
                           className="bg-input/50"
                         />
                       </div>
@@ -332,10 +335,13 @@ export default function Dashboard() {
                           min="0"
                           max="59"
                           value={formData.birth_data.minute}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            birth_data: { ...formData.birth_data, minute: parseInt(e.target.value) || 0 }
-                          })}
+                          onChange={(e) => {
+                            const parsed = parseInt(e.target.value, 10);
+                            setFormData({
+                              ...formData,
+                              birth_data: { ...formData.birth_data, minute: Number.isNaN(parsed) ? 0 : parsed }
+                            });
+                          }}
                           className="bg-input/50"
                         />
                       </div>
@@ -356,7 +362,7 @@ export default function Dashboard() {
 
                     <Button
                       type="submit"
-                      className="w-full bg-gradient-to-r from-primary to-accent"
+                      className="w-full bg-linear-to-r from-primary to-accent"
                       disabled={createBoyfriend.isPending}
                     >
                       {createBoyfriend.isPending ? (

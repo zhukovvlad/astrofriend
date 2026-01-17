@@ -1,6 +1,6 @@
 """
 Astro-Soulmate: Authentication Service
-JWT Token generation and password hashing
+JWT Token generation, password hashing, and httpOnly cookie authentication
 """
 from datetime import datetime, timedelta
 from typing import Optional
@@ -8,14 +8,10 @@ import uuid
 
 from jose import JWTError, jwt
 import bcrypt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, status, Request, Response
 
 from config import settings
 from models import TokenData
-
-# OAuth2 scheme for token extraction from headers
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 # ============================================
@@ -124,26 +120,71 @@ def decode_access_token(token: str) -> Optional[TokenData]:
 
 
 # ============================================
-# AUTHENTICATION DEPENDENCY
+# COOKIE UTILITIES
 # ============================================
-async def get_current_user_id(token: str = Depends(oauth2_scheme)) -> uuid.UUID:
+def set_auth_cookie(response: Response, token: str) -> None:
     """
-    FastAPI dependency to extract and validate current user from JWT token.
+    Set httpOnly secure cookie with the access token.
     
     Args:
-        token: JWT token from Authorization header (injected by OAuth2PasswordBearer)
+        response: FastAPI Response object
+        token: JWT access token
+    """
+    response.set_cookie(
+        key=settings.cookie_name,
+        value=token,
+        httponly=settings.cookie_httponly,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        domain=settings.cookie_domain,
+        max_age=settings.jwt_access_token_expire_minutes * 60,  # Convert to seconds
+        path="/",
+    )
+
+
+def clear_auth_cookie(response: Response) -> None:
+    """
+    Clear the authentication cookie.
+    
+    Args:
+        response: FastAPI Response object
+    """
+    response.delete_cookie(
+        key=settings.cookie_name,
+        httponly=settings.cookie_httponly,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        domain=settings.cookie_domain,
+        path="/",
+    )
+
+
+# ============================================
+# AUTHENTICATION DEPENDENCY (Cookie-based)
+# ============================================
+async def get_current_user_id(request: Request) -> uuid.UUID:
+    """
+    FastAPI dependency to extract and validate current user from httpOnly cookie.
+    
+    Args:
+        request: FastAPI Request object
         
     Returns:
         User's UUID
         
     Raises:
-        HTTPException: If token is invalid or expired
+        HTTPException: If token is invalid, expired, or missing
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    # Get token from httpOnly cookie
+    token = request.cookies.get(settings.cookie_name)
+    
+    if token is None:
+        raise credentials_exception
     
     token_data = decode_access_token(token)
     
@@ -161,15 +202,13 @@ async def get_current_user_id(token: str = Depends(oauth2_scheme)) -> uuid.UUID:
 # ============================================
 # OPTIONAL AUTH (for public routes that can benefit from auth)
 # ============================================
-async def get_optional_user_id(
-    token: Optional[str] = Depends(
-        OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
-    )
-) -> Optional[uuid.UUID]:
+async def get_optional_user_id(request: Request) -> Optional[uuid.UUID]:
     """
     FastAPI dependency for optional authentication.
-    Returns user_id if valid token provided, None otherwise.
+    Returns user_id if valid token provided in cookie, None otherwise.
     """
+    token = request.cookies.get(settings.cookie_name)
+    
     if token is None:
         return None
     
