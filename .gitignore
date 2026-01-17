@@ -71,6 +71,9 @@ dist-ssr/
 out/
 .nuxt/
 
+# Vite
+.vite/
+
 # Logs
 logs/
 *.log
