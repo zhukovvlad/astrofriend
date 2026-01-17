@@ -1,10 +1,22 @@
-.PHONY: help install install-backend install-frontend backend frontend dev clean db-init
+.PHONY: help install install-backend install-frontend venv backend frontend dev clean db-init test test-backend
+
+# Detect Python executable from venv (absolute path from project root)
+PROJECT_ROOT := $(shell pwd)
+VENV_PYTHON := $(shell \
+	if [ -f "$(PROJECT_ROOT)/astro_backend/.venv/bin/python" ]; then \
+		echo "$(PROJECT_ROOT)/astro_backend/.venv/bin/python"; \
+	elif [ -f "$(PROJECT_ROOT)/astro_backend/venv/bin/python" ]; then \
+		echo "$(PROJECT_ROOT)/astro_backend/venv/bin/python"; \
+	else \
+		echo "python"; \
+	fi)
 
 # Default target
 help:
 	@echo "🌟 Astro-Soulmate Development Commands"
 	@echo ""
 	@echo "Setup:"
+	@echo "  make venv             - Create Python virtual environment"
 	@echo "  make install          - Install all dependencies (backend + frontend)"
 	@echo "  make install-backend  - Install backend dependencies"
 	@echo "  make install-frontend - Install frontend dependencies"
@@ -15,21 +27,37 @@ help:
 	@echo "  make backend          - Run backend server only"
 	@echo "  make frontend         - Run frontend dev server only"
 	@echo ""
+	@echo "Testing:"
+	@echo "  make test             - Run all tests"
+	@echo "  make test-backend     - Run backend tests"
+	@echo ""
 	@echo "Utilities:"
 	@echo "  make clean            - Clean build artifacts and caches"
-	@echo "  make test-backend     - Run backend tests"
+	@echo ""
+	@echo "Note: Virtual environment is used automatically if it exists"
+	@echo "      (astro_backend/.venv or astro_backend/venv)"
 	@echo ""
 
 # ============================================
 # INSTALLATION
 # ============================================
 
+venv:
+	@echo "🐍 Creating Python virtual environment..."
+	@cd astro_backend && python -m venv .venv
+	@echo "✅ Virtual environment created!"
+	@echo "Activate with: source astro_backend/.venv/bin/activate"
+
 install: install-backend install-frontend
 	@echo "✅ All dependencies installed!"
 
 install-backend:
 	@echo "📦 Installing backend dependencies..."
-	@cd astro_backend && python -m pip install -r requirements.txt
+	@if [ ! -d "$(PROJECT_ROOT)/astro_backend/.venv" ] && [ ! -d "$(PROJECT_ROOT)/astro_backend/venv" ]; then \
+		echo "⚠️  No virtual environment found. Create one with: make venv"; \
+		exit 1; \
+	fi
+	@$(VENV_PYTHON) -m pip install -r astro_backend/requirements.txt
 
 install-frontend:
 	@echo "📦 Installing frontend dependencies..."
@@ -41,7 +69,7 @@ install-frontend:
 
 db-init:
 	@echo "🗄️  Initializing database..."
-	@cd astro_backend && python -c "from database import init_db; import asyncio; asyncio.run(init_db())"
+	@cd astro_backend && $(VENV_PYTHON) -c "from database import init_db; import asyncio; asyncio.run(init_db())"
 	@echo "✅ Database initialized!"
 
 # ============================================
@@ -50,7 +78,7 @@ db-init:
 
 backend:
 	@echo "🚀 Starting backend server..."
-	@cd astro_backend && python main.py
+	@cd astro_backend && $(VENV_PYTHON) main.py
 
 frontend:
 	@echo "🎨 Starting frontend dev server..."
@@ -66,7 +94,7 @@ dev:
 	@echo "Press Ctrl+C to stop both servers"
 	@echo ""
 	@trap 'kill 0' EXIT; \
-	(cd astro_backend && python main.py) & \
+	(cd astro_backend && $(VENV_PYTHON) main.py) & \
 	(cd astro_frontend && pnpm run dev) & \
 	wait
 
@@ -74,9 +102,12 @@ dev:
 # TESTING
 # ============================================
 
+test: test-backend
+	@echo "✅ All tests complete!"
+
 test-backend:
 	@echo "🧪 Running backend tests..."
-	@cd astro_backend && pytest
+	@cd astro_backend && $(VENV_PYTHON) -m pytest
 
 # ============================================
 # CLEANUP

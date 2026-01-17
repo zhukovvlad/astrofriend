@@ -2,7 +2,6 @@
 # PYTHON / BACKEND
 # ============================================
 # Byte-compiled / optimized / DLL files
-__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -55,6 +54,13 @@ dmypy.json
 *.db
 *.sqlite3
 
+# Cache directories and files
+cache/
+*.cache
+.cache/
+.parcel-cache/
+__pycache__/
+
 # ============================================
 # NODE.JS / FRONTEND
 # ============================================
@@ -64,8 +70,6 @@ dist-ssr/
 .next/
 out/
 .nuxt/
-.cache/
-.parcel-cache/
 
 # Logs
 logs/
