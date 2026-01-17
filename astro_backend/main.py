@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Optional
 import uuid
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +26,9 @@ from services.auth import (
     hash_password,
     verify_password,
     create_access_token,
-    get_current_user_id
+    get_current_user_id,
+    set_auth_cookie,
+    clear_auth_cookie
 )
 from services.ai_client import ai_client
 
@@ -127,16 +129,17 @@ async def register(
     return new_user
 
 
-@app.post("/auth/login", response_model=Token, tags=["Auth"])
+@app.post("/auth/login", response_model=UserRead, tags=["Auth"])
 async def login(
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Login and receive JWT access token.
+    Login and receive httpOnly cookie with JWT access token.
     
-    Use the returned token in the Authorization header:
-    `Authorization: Bearer <token>`
+    The token is automatically set as a secure httpOnly cookie.
+    No need to manually handle the token on the client side.
     """
     # Find user by email (username field in OAuth2 form)
     statement = select(User).where(User.email == form_data.username)
@@ -147,7 +150,6 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
         )
     
     if not user.is_active:
@@ -156,10 +158,20 @@ async def login(
             detail="User account is disabled"
         )
     
-    # Generate JWT token
+    # Generate JWT token and set httpOnly cookie
     access_token = create_access_token(user_id=user.id, email=user.email)
+    set_auth_cookie(response, access_token)
     
-    return Token(access_token=access_token)
+    return user
+
+
+@app.post("/auth/logout", tags=["Auth"])
+async def logout(response: Response):
+    """
+    Logout and clear the authentication cookie.
+    """
+    clear_auth_cookie(response)
+    return {"message": "Successfully logged out"}
 
 
 @app.get("/auth/me", response_model=UserRead, tags=["Auth"])
