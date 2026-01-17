@@ -23,14 +23,31 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-// Response interceptor - handle 401 errors
+// Response interceptor - handle 401 errors intelligently
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiError>) => {
     if (error.response?.status === 401) {
-      // Redirect to login on unauthorized
-      // Cookie will be cleared by the server on logout
-      window.location.href = "/login";
+      // Check if we should skip automatic redirect to login
+      const currentPath = window.location.pathname;
+      const requestUrl = error.config?.url || "";
+      const skipRedirect = error.config?.headers?.["x-skip-401-redirect"];
+      
+      const shouldSkipRedirect = 
+        // Already on auth page
+        currentPath === "/login" || 
+        currentPath === "/register" ||
+        // Request was to auth endpoint (let the component handle it)
+        requestUrl.includes("/auth/login") ||
+        requestUrl.includes("/auth/register") ||
+        // Explicit opt-out via header
+        skipRedirect === "true";
+      
+      if (!shouldSkipRedirect) {
+        // Redirect to login for unauthorized requests
+        // Cookie will be cleared by the server on logout
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
