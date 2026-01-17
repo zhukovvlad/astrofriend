@@ -128,6 +128,14 @@ export default function Chat() {
     ? deduplicateMessages(currentSession?.history || [], localMessages)
     : localMessages;
 
+  // Clear local messages when session is loaded from server
+  useEffect(() => {
+    if (currentSession && currentSession.history.length > 0 && localMessages.length > 0) {
+      // If we have messages in both places, clear local to prevent duplicates
+      setLocalMessages([]);
+    }
+  }, [currentSession?.history.length]);
+
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
     // The ref now points directly to the viewport element

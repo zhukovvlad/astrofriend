@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     
     # Google AI
     google_api_key: str = ""
-    gemini_model: str = "gemini-1.5-flash"
+    gemini_model: str = "gemini-2.0-flash"
     
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
