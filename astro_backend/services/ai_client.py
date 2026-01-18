@@ -37,12 +37,17 @@ class AIClient:
             Complete system prompt string
         """
         # Determine pronouns based on gender
+        # Normalize and validate gender to prevent AttributeError
+        gender_str = (gender or "").strip().lower() if isinstance(gender, str) else "male"
+        if not gender_str:
+            gender_str = "male"
+        
         pronouns = {
             "male": {"subject": "he", "object": "him", "possessive": "his", "title": "boyfriend"},
             "female": {"subject": "she", "object": "her", "possessive": "her", "title": "girlfriend"},
         }
         
-        pronoun_set = pronouns.get(gender.lower(), pronouns["male"])
+        pronoun_set = pronouns.get(gender_str, pronouns["male"])
         
         base_prompt = f"""You are {boyfriend_name}, a loving and attentive AI {pronoun_set['title']} in a relationship simulation app.
 

@@ -143,6 +143,24 @@ export default function Chat() {
     inputRef.current?.focus();
   }, []);
 
+  // Clean up localMessages once they appear in server history
+  useEffect(() => {
+    if (currentSession && localMessages.length > 0) {
+      // Check if all local messages are now in server history
+      const remainingMessages = localMessages.filter(localMsg => {
+        return !currentSession.history.some(serverMsg => 
+          serverMsg.role === localMsg.role && 
+          serverMsg.content === localMsg.content
+        );
+      });
+      
+      // If some messages were deduplicated, update the state
+      if (remainingMessages.length !== localMessages.length) {
+        setLocalMessages(remainingMessages);
+      }
+    }
+  }, [currentSession, localMessages]);
+
   // Handle send message
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,8 +192,8 @@ export default function Chat() {
         setCurrentSessionId(response.session_id);
       }
 
-      // Clear local messages immediately - server data will be used
-      setLocalMessages([]);
+      // Let deduplicateMessages handle merging after server refetch completes
+      // localMessages will be filtered out naturally when they appear in session history
       
     } catch (error) {
       // Remove optimistic message on error
