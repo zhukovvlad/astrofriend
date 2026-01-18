@@ -118,8 +118,9 @@ export default function Chat() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Get current session's messages with deduplication
@@ -128,20 +129,9 @@ export default function Chat() {
     ? deduplicateMessages(currentSession?.history || [], localMessages)
     : localMessages;
 
-  // Clear local messages when session is loaded from server
-  useEffect(() => {
-    if (currentSession && currentSession.history.length > 0 && localMessages.length > 0) {
-      // If we have messages in both places, clear local to prevent duplicates
-      setLocalMessages([]);
-    }
-  }, [currentSession?.history.length]);
-
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
-    // The ref now points directly to the viewport element
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   useEffect(() => {
@@ -164,6 +154,9 @@ export default function Chat() {
       timestamp: new Date().toISOString(),
     };
 
+    // Clear any previous errors
+    setSendError(null);
+    
     // Optimistic UI - show user message immediately
     setLocalMessages(prev => [...prev, userMessage]);
     setMessage("");
@@ -195,6 +188,10 @@ export default function Chat() {
     } catch (error) {
       // Remove optimistic message on error
       setLocalMessages(prev => prev.filter(m => m !== userMessage));
+      // Show error message to user
+      setSendError("Failed to send message. Please try again.");
+      // Restore the message in input field
+      setMessage(userMessage.content);
     } finally {
       setIsTyping(false);
     }
@@ -349,9 +346,9 @@ export default function Chat() {
         </AnimatePresence>
 
         {/* Messages Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1" ref={scrollRef}>
-            <div className="p-4 space-y-4 min-h-full">
+        <div className="flex-1 flex flex-col">
+          <ScrollArea className="flex-1 h-0">
+            <div className="p-4 space-y-4">
               {displayMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full py-20 text-center">
                   <motion.div
@@ -382,11 +379,24 @@ export default function Chat() {
               <AnimatePresence>
                 {isTyping && <TypingIndicator />}
               </AnimatePresence>
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 
           {/* Input Area */}
           <div className="shrink-0 p-4 glass border-t border-border/50">
+            {sendError && (
+              <div className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center justify-between">
+                <span>{sendError}</span>
+                <button
+                  onClick={() => setSendError(null)}
+                  className="ml-2 hover:opacity-70"
+                  type="button"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             <form onSubmit={handleSend} className="flex gap-2">
               <Input
                 ref={inputRef}
