@@ -118,6 +118,7 @@ export default function Chat() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -127,14 +128,6 @@ export default function Chat() {
   const displayMessages = currentSessionId 
     ? deduplicateMessages(currentSession?.history || [], localMessages)
     : localMessages;
-
-  // Clear local messages when session is loaded from server
-  useEffect(() => {
-    if (currentSession && currentSession.history.length > 0 && localMessages.length > 0) {
-      // If we have messages in both places, clear local to prevent duplicates
-      setLocalMessages([]);
-    }
-  }, [currentSession?.history.length]);
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
@@ -161,6 +154,9 @@ export default function Chat() {
       timestamp: new Date().toISOString(),
     };
 
+    // Clear any previous errors
+    setSendError(null);
+    
     // Optimistic UI - show user message immediately
     setLocalMessages(prev => [...prev, userMessage]);
     setMessage("");
@@ -192,6 +188,10 @@ export default function Chat() {
     } catch (error) {
       // Remove optimistic message on error
       setLocalMessages(prev => prev.filter(m => m !== userMessage));
+      // Show error message to user
+      setSendError("Failed to send message. Please try again.");
+      // Restore the message in input field
+      setMessage(userMessage.content);
     } finally {
       setIsTyping(false);
     }
@@ -385,6 +385,18 @@ export default function Chat() {
 
           {/* Input Area */}
           <div className="shrink-0 p-4 glass border-t border-border/50">
+            {sendError && (
+              <div className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center justify-between">
+                <span>{sendError}</span>
+                <button
+                  onClick={() => setSendError(null)}
+                  className="ml-2 hover:opacity-70"
+                  type="button"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             <form onSubmit={handleSend} className="flex gap-2">
               <Input
                 ref={inputRef}
