@@ -119,7 +119,7 @@ export default function Chat() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Get current session's messages with deduplication
@@ -138,10 +138,7 @@ export default function Chat() {
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
-    // The ref now points directly to the viewport element
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   useEffect(() => {
@@ -349,9 +346,9 @@ export default function Chat() {
         </AnimatePresence>
 
         {/* Messages Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1" ref={scrollRef}>
-            <div className="p-4 space-y-4 min-h-full">
+        <div className="flex-1 flex flex-col">
+          <ScrollArea className="flex-1 h-0">
+            <div className="p-4 space-y-4">
               {displayMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full py-20 text-center">
                   <motion.div
@@ -382,6 +379,7 @@ export default function Chat() {
               <AnimatePresence>
                 {isTyping && <TypingIndicator />}
               </AnimatePresence>
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 
