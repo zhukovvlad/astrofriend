@@ -364,6 +364,7 @@ async def chat_with_boyfriend(
     ai_response = await ai_client.generate_response(
         message=chat_request.message,
         boyfriend_name=boyfriend.name,
+        gender=boyfriend.gender,
         system_prompt=boyfriend.system_prompt,
         chat_history=chat_session.history
     )

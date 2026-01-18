@@ -174,17 +174,9 @@ export default function Chat() {
         setCurrentSessionId(response.session_id);
       }
 
-      // Add AI response
-      const aiMessage: ChatMessage = {
-        role: "assistant",
-        content: response.ai_response,
-        timestamp: new Date().toISOString(),
-      };
+      // Clear local messages immediately - server data will be used
+      setLocalMessages([]);
       
-      setLocalMessages(prev => [...prev, aiMessage]);
-      
-      // Note: Messages will be automatically deduped when sessions refetch
-      // The deduplicateMessages function will prevent duplicates
     } catch (error) {
       // Remove optimistic message on error
       setLocalMessages(prev => prev.filter(m => m !== userMessage));
