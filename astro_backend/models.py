@@ -61,6 +61,7 @@ class BirthData(SQLModel):
 
 class BoyfriendBase(SQLModel):
     name: str = Field(max_length=100, index=True)
+    gender: str = Field(default="male", max_length=20)  # "male" or "female"
     birth_data: dict = Field(default={}, sa_column=Column(JSON))
     system_prompt: Optional[str] = Field(default=None)
     avatar_url: Optional[str] = Field(default=None, max_length=500)
@@ -82,6 +83,7 @@ class Boyfriend(BoyfriendBase, table=True):
 class BoyfriendCreate(SQLModel):
     """Schema for creating a boyfriend persona"""
     name: str
+    gender: str = "male"  # "male" or "female"
     birth_data: BirthData
 
 
@@ -89,6 +91,7 @@ class BoyfriendRead(SQLModel):
     """Schema for boyfriend response"""
     id: uuid.UUID
     name: str
+    gender: str
     birth_data: dict
     system_prompt: Optional[str]
     avatar_url: Optional[str]

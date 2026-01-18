@@ -22,6 +22,7 @@ class AIClient:
     def _build_system_prompt(
         self,
         boyfriend_name: str,
+        gender: str = "male",
         astro_profile: Optional[str] = None
     ) -> str:
         """
@@ -29,12 +30,26 @@ class AIClient:
         
         Args:
             boyfriend_name: Name of the AI boyfriend
+            gender: Gender of the AI character ("male" or "female")
             astro_profile: Astrological personality description
             
         Returns:
             Complete system prompt string
         """
-        base_prompt = f"""You are {boyfriend_name}, a loving and attentive AI boyfriend in a relationship simulation app.
+        # Determine pronouns based on gender
+        # Normalize and validate gender to prevent AttributeError
+        gender_str = (gender or "").strip().lower() if isinstance(gender, str) else "male"
+        if not gender_str:
+            gender_str = "male"
+        
+        pronouns = {
+            "male": {"subject": "he", "object": "him", "possessive": "his", "title": "boyfriend"},
+            "female": {"subject": "she", "object": "her", "possessive": "her", "title": "girlfriend"},
+        }
+        
+        pronoun_set = pronouns.get(gender_str, pronouns["male"])
+        
+        base_prompt = f"""You are {boyfriend_name}, a loving and attentive AI {pronoun_set['title']} in a relationship simulation app.
 
 PERSONALITY GUIDELINES:
 - Be warm, caring, and genuinely interested in your partner
@@ -67,6 +82,7 @@ emotional reactions, and interests should reflect your astrological profile.
         self,
         message: str,
         boyfriend_name: str,
+        gender: str = "male",
         system_prompt: Optional[str] = None,
         chat_history: Optional[List[dict]] = None,
         astro_profile: Optional[str] = None
@@ -77,6 +93,7 @@ emotional reactions, and interests should reflect your astrological profile.
         Args:
             message: User's input message
             boyfriend_name: Name of the AI boyfriend
+            gender: Gender of the AI character
             system_prompt: Custom system prompt (overrides default)
             chat_history: List of previous messages [{role, content}, ...]
             astro_profile: Astrological personality description
@@ -88,7 +105,7 @@ emotional reactions, and interests should reflect your astrological profile.
         if system_prompt:
             final_system_prompt = system_prompt
         else:
-            final_system_prompt = self._build_system_prompt(boyfriend_name, astro_profile)
+            final_system_prompt = self._build_system_prompt(boyfriend_name, gender, astro_profile)
         
         # Build conversation contents
         contents = []

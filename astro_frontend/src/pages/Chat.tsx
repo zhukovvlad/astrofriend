@@ -143,6 +143,24 @@ export default function Chat() {
     inputRef.current?.focus();
   }, []);
 
+  // Clean up localMessages once they appear in server history
+  useEffect(() => {
+    if (currentSession && localMessages.length > 0) {
+      // Check if all local messages are now in server history
+      const remainingMessages = localMessages.filter(localMsg => {
+        return !currentSession.history.some(serverMsg => 
+          serverMsg.role === localMsg.role && 
+          serverMsg.content === localMsg.content
+        );
+      });
+      
+      // If some messages were deduplicated, update the state
+      if (remainingMessages.length !== localMessages.length) {
+        setLocalMessages(remainingMessages);
+      }
+    }
+  }, [currentSession, localMessages]);
+
   // Handle send message
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,17 +192,9 @@ export default function Chat() {
         setCurrentSessionId(response.session_id);
       }
 
-      // Add AI response
-      const aiMessage: ChatMessage = {
-        role: "assistant",
-        content: response.ai_response,
-        timestamp: new Date().toISOString(),
-      };
+      // Let deduplicateMessages handle merging after server refetch completes
+      // localMessages will be filtered out naturally when they appear in session history
       
-      setLocalMessages(prev => [...prev, aiMessage]);
-      
-      // Note: Messages will be automatically deduped when sessions refetch
-      // The deduplicateMessages function will prevent duplicates
     } catch (error) {
       // Remove optimistic message on error
       setLocalMessages(prev => prev.filter(m => m !== userMessage));

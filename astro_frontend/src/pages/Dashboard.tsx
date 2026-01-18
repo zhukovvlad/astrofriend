@@ -46,6 +46,7 @@ export default function Dashboard() {
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState<BoyfriendCreate>({
     name: "",
+    gender: "male",
     birth_data: {
       name: "",
       year: 1995,
@@ -68,6 +69,7 @@ export default function Dashboard() {
     setShowModal(false);
     setFormData({
       name: "",
+      gender: "male",
       birth_data: { name: "", year: 1995, month: 1, day: 1, hour: 12, minute: 0, city: "Moscow", nation: "RU" },
     });
   };
@@ -263,6 +265,40 @@ export default function Dashboard() {
                         className="bg-input/50"
                         required
                       />
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Gender</label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, gender: "male" })}
+                          className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                            formData.gender === "male"
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border/50 hover:border-border"
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="text-2xl mb-1">♂️</div>
+                            <div className="text-sm font-medium">Male</div>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, gender: "female" })}
+                          className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                            formData.gender === "female"
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border/50 hover:border-border"
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="text-2xl mb-1">♀️</div>
+                            <div className="text-sm font-medium">Female</div>
+                          </div>
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-3">

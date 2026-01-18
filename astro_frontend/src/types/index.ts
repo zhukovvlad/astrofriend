@@ -36,6 +36,7 @@ export interface BirthData {
 export interface Boyfriend {
   id: string;
   name: string;
+  gender: string;
   birth_data: BirthData;
   system_prompt?: string | null;
   avatar_url?: string | null;
@@ -44,6 +45,7 @@ export interface Boyfriend {
 
 export interface BoyfriendCreate {
   name: string;
+  gender?: string;
   birth_data: BirthData;
 }
 

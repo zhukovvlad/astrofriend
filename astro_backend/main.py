@@ -212,9 +212,10 @@ async def create_boyfriend(
     birth_dict = boyfriend_data.birth_data.model_dump()
     astro_profile = await ai_client.generate_astro_profile(birth_dict)
     
-    # Build system prompt with astro personality
+    # Build system prompt with astro personality and gender
     system_prompt = ai_client._build_system_prompt(
         boyfriend_name=boyfriend_data.name,
+        gender=boyfriend_data.gender or "male",
         astro_profile=astro_profile
     )
     
@@ -222,6 +223,7 @@ async def create_boyfriend(
     new_boyfriend = Boyfriend(
         user_id=current_user_id,
         name=boyfriend_data.name,
+        gender=boyfriend_data.gender or "male",
         birth_data=birth_dict,
         system_prompt=system_prompt
     )
@@ -364,6 +366,7 @@ async def chat_with_boyfriend(
     ai_response = await ai_client.generate_response(
         message=chat_request.message,
         boyfriend_name=boyfriend.name,
+        gender=boyfriend.gender,
         system_prompt=boyfriend.system_prompt,
         chat_history=chat_session.history
     )

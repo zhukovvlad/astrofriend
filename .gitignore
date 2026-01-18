@@ -54,6 +54,12 @@ dmypy.json
 *.db
 *.sqlite3
 
+# Alembic
+# Note: Keep alembic/ folder and migrations in git
+# Only ignore pycache
+alembic/__pycache__/
+alembic/versions/__pycache__/
+
 # Cache directories and files
 cache/
 *.cache
