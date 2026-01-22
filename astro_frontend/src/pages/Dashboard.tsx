@@ -10,9 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useBoyfriends, useCreateBoyfriend, useDeleteBoyfriend } from "@/hooks/useBoyfriends";
+import { useAICharacters, useCreateAICharacter, useDeleteAICharacter } from "@/hooks/useAICharacters";
 import { useAuthStore } from "@/stores/authStore";
-import type { BoyfriendCreate } from "@/types";
+import type { AICharacterCreate } from "@/types";
 
 const zodiacSigns = [
   "♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"
@@ -39,12 +39,12 @@ function getRandomGradient(id: string): string {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { logout, user } = useAuthStore();
-  const { data: boyfriends, isLoading } = useBoyfriends();
-  const createBoyfriend = useCreateBoyfriend();
-  const deleteBoyfriend = useDeleteBoyfriend();
+  const { data: aiCharacters, isLoading } = useAICharacters();
+  const createAICharacter = useCreateAICharacter();
+  const deleteAICharacter = useDeleteAICharacter();
   
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState<BoyfriendCreate>({
+  const [formData, setFormData] = useState<AICharacterCreate>({
     name: "",
     gender: "male",
     birth_data: {
@@ -65,7 +65,7 @@ export default function Dashboard() {
       ...formData,
       birth_data: { ...formData.birth_data, name: formData.name },
     };
-    await createBoyfriend.mutateAsync(data);
+    await createAICharacter.mutateAsync(data);
     setShowModal(false);
     setFormData({
       name: "",
@@ -78,7 +78,7 @@ export default function Dashboard() {
     e.preventDefault();
     e.stopPropagation();
     if (confirm("Are you sure you want to delete this soulmate?")) {
-      await deleteBoyfriend.mutateAsync(id);
+      await deleteAICharacter.mutateAsync(id);
     }
   };
 
@@ -144,7 +144,7 @@ export default function Dashboard() {
               </Card>
             ))}
           </div>
-        ) : boyfriends?.length === 0 ? (
+        ) : aiCharacters?.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -168,7 +168,7 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence>
-              {boyfriends?.map((bf, index) => (
+              {aiCharacters?.map((bf, index) => (
                 <motion.div
                   key={bf.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -399,9 +399,9 @@ export default function Dashboard() {
                     <Button
                       type="submit"
                       className="w-full bg-linear-to-r from-primary to-accent"
-                      disabled={createBoyfriend.isPending}
+                      disabled={createAICharacter.isPending}
                     >
-                      {createBoyfriend.isPending ? (
+                      {createAICharacter.isPending ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                           Creating persona...

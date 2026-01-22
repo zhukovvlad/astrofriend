@@ -20,7 +20,7 @@ export interface Token {
 }
 
 // ============================================
-// BOYFRIEND TYPES
+// AI CHARACTER TYPES
 // ============================================
 export interface BirthData {
   name: string;
@@ -33,7 +33,7 @@ export interface BirthData {
   nation?: string;
 }
 
-export interface Boyfriend {
+export interface AICharacter {
   id: string;
   name: string;
   gender: string;
@@ -43,7 +43,7 @@ export interface Boyfriend {
   created_at: string;
 }
 
-export interface BoyfriendCreate {
+export interface AICharacterCreate {
   name: string;
   gender?: string;
   birth_data: BirthData;
@@ -60,26 +60,26 @@ export interface ChatMessage {
 
 export interface ChatSession {
   id: string;
-  boyfriend_id: string;
+  ai_character_id: string;
   title?: string;
   history: ChatMessage[];
   created_at: string;
 }
 
 export interface ChatSessionCreate {
-  boyfriend_id: string;
+  ai_character_id: string;
   title?: string;
 }
 
 export interface ChatRequest {
-  boyfriend_id: string;
+  ai_character_id: string;
   message: string;
   session_id?: string;
 }
 
 export interface ChatResponse {
   session_id: string;
-  boyfriend_id: string;
+  ai_character_id: string;
   user_message: string;
   ai_response: string;
 }

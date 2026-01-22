@@ -26,7 +26,7 @@ class User(UserBase, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
-    boyfriends: List["Boyfriend"] = Relationship(back_populates="user")
+    ai_characters: List["AICharacter"] = Relationship(back_populates="user")
 
 
 class UserCreate(SQLModel):
@@ -45,7 +45,7 @@ class UserRead(SQLModel):
 
 
 # ============================================
-# BOYFRIEND (AI PERSONA) MODEL
+# AI CHARACTER (AI PERSONA) MODEL
 # ============================================
 class BirthData(SQLModel):
     """Nested schema for astrological birth data"""
@@ -59,7 +59,7 @@ class BirthData(SQLModel):
     nation: str = "RU"
 
 
-class BoyfriendBase(SQLModel):
+class AICharacterBase(SQLModel):
     name: str = Field(max_length=100, index=True)
     gender: str = Field(default="male", max_length=20)  # "male" or "female"
     birth_data: dict = Field(default={}, sa_column=Column(JSON))
@@ -67,8 +67,8 @@ class BoyfriendBase(SQLModel):
     avatar_url: Optional[str] = Field(default=None, max_length=500)
 
 
-class Boyfriend(BoyfriendBase, table=True):
-    __tablename__ = "boyfriends"
+class AICharacter(AICharacterBase, table=True):
+    __tablename__ = "ai_characters"
     
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True)
@@ -76,19 +76,19 @@ class Boyfriend(BoyfriendBase, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
-    user: User = Relationship(back_populates="boyfriends")
-    chat_sessions: List["ChatSession"] = Relationship(back_populates="boyfriend")
+    user: User = Relationship(back_populates="ai_characters")
+    chat_sessions: List["ChatSession"] = Relationship(back_populates="ai_character")
 
 
-class BoyfriendCreate(SQLModel):
-    """Schema for creating a boyfriend persona"""
+class AICharacterCreate(SQLModel):
+    """Schema for creating an AI character persona"""
     name: str
     gender: str = "male"  # "male" or "female"
     birth_data: BirthData
 
 
-class BoyfriendRead(SQLModel):
-    """Schema for boyfriend response"""
+class AICharacterRead(SQLModel):
+    """Schema for AI character response"""
     id: uuid.UUID
     name: str
     gender: str
@@ -117,24 +117,24 @@ class ChatSession(ChatSessionBase, table=True):
     __tablename__ = "chat_sessions"
     
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    boyfriend_id: uuid.UUID = Field(foreign_key="boyfriends.id", index=True)
+    ai_character_id: uuid.UUID = Field(foreign_key="ai_characters.id", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     # Relationships
-    boyfriend: Boyfriend = Relationship(back_populates="chat_sessions")
+    ai_character: AICharacter = Relationship(back_populates="chat_sessions")
 
 
 class ChatSessionCreate(SQLModel):
     """Schema for creating a chat session"""
-    boyfriend_id: uuid.UUID
+    ai_character_id: uuid.UUID
     title: Optional[str] = "New Chat"
 
 
 class ChatSessionRead(SQLModel):
     """Schema for chat session response"""
     id: uuid.UUID
-    boyfriend_id: uuid.UUID
+    ai_character_id: uuid.UUID
     title: Optional[str]
     history: List[dict]
     created_at: datetime
@@ -145,7 +145,7 @@ class ChatSessionRead(SQLModel):
 # ============================================
 class ChatRequest(SQLModel):
     """Schema for chat API request"""
-    boyfriend_id: uuid.UUID
+    ai_character_id: uuid.UUID
     message: str
     session_id: Optional[uuid.UUID] = None
 
@@ -153,7 +153,7 @@ class ChatRequest(SQLModel):
 class ChatResponse(SQLModel):
     """Schema for chat API response"""
     session_id: uuid.UUID
-    boyfriend_id: uuid.UUID
+    ai_character_id: uuid.UUID
     user_message: str
     ai_response: str
 

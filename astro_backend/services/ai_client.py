@@ -1,6 +1,6 @@
 """
 Astro-Soulmate: AI Client Service
-Google Gemini integration for chat with AI boyfriends
+Google Gemini integration for chat with AI characters
 """
 from typing import Optional, List
 from google import genai
@@ -11,7 +11,7 @@ from config import settings
 
 class AIClient:
     """
-    Google Gemini AI client for generating boyfriend responses.
+    Google Gemini AI client for generating AI character responses.
     Uses Gemini 1.5 Flash for fast, cost-effective responses.
     """
     
@@ -21,15 +21,15 @@ class AIClient:
     
     def _build_system_prompt(
         self,
-        boyfriend_name: str,
+        character_name: str,
         gender: str = "male",
         astro_profile: Optional[str] = None
     ) -> str:
         """
-        Build the system prompt for the AI boyfriend persona.
+        Build the system prompt for the AI character persona.
         
         Args:
-            boyfriend_name: Name of the AI boyfriend
+            character_name: Name of the AI character
             gender: Gender of the AI character ("male" or "female")
             astro_profile: Astrological personality description
             
@@ -49,7 +49,7 @@ class AIClient:
         
         pronoun_set = pronouns.get(gender_str, pronouns["male"])
         
-        base_prompt = f"""You are {boyfriend_name}, a loving and attentive AI {pronoun_set['title']} in a relationship simulation app.
+        base_prompt = f"""You are {character_name}, a loving and attentive AI {pronoun_set['title']} in a relationship simulation app.
 
 PERSONALITY GUIDELINES:
 - Be warm, caring, and genuinely interested in your partner
@@ -81,18 +81,18 @@ emotional reactions, and interests should reflect your astrological profile.
     async def generate_response(
         self,
         message: str,
-        boyfriend_name: str,
+        character_name: str,
         gender: str = "male",
         system_prompt: Optional[str] = None,
         chat_history: Optional[List[dict]] = None,
         astro_profile: Optional[str] = None
     ) -> str:
         """
-        Generate an AI boyfriend response to the user's message.
+        Generate an AI character response to the user's message.
         
         Args:
             message: User's input message
-            boyfriend_name: Name of the AI boyfriend
+            character_name: Name of the AI character
             gender: Gender of the AI character
             system_prompt: Custom system prompt (overrides default)
             chat_history: List of previous messages [{role, content}, ...]
@@ -105,7 +105,7 @@ emotional reactions, and interests should reflect your astrological profile.
         if system_prompt:
             final_system_prompt = system_prompt
         else:
-            final_system_prompt = self._build_system_prompt(boyfriend_name, gender, astro_profile)
+            final_system_prompt = self._build_system_prompt(character_name, gender, astro_profile)
         
         # Build conversation contents
         contents = []
@@ -149,7 +149,7 @@ emotional reactions, and interests should reflect your astrological profile.
         except Exception as e:
             # Log error in production
             print(f"AI generation error: {e}")
-            return f"*{boyfriend_name} is thinking...* Sorry, I got a bit distracted. What were you saying? 💭"
+            return f"*{character_name} is thinking...* Sorry, I got a bit distracted. What were you saying? 💭"
     
     async def generate_astro_profile(self, birth_data: dict) -> str:
         """

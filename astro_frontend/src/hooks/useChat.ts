@@ -4,17 +4,17 @@ import type { ChatSession, ChatRequest, ChatResponse } from "@/types";
 
 // Query keys
 export const chatKeys = {
-  sessions: (boyfriendId?: string) => 
-    boyfriendId ? ["chat-sessions", boyfriendId] : ["chat-sessions"],
+  sessions: (aiCharacterId?: string) => 
+    aiCharacterId ? ["chat-sessions", aiCharacterId] : ["chat-sessions"],
   session: (id: string) => ["chat-session", id] as const,
 };
 
 // Fetch chat sessions
-export function useChatSessions(boyfriendId?: string) {
+export function useChatSessions(aiCharacterId?: string) {
   return useQuery({
-    queryKey: chatKeys.sessions(boyfriendId),
+    queryKey: chatKeys.sessions(aiCharacterId),
     queryFn: async () => {
-      const params = boyfriendId ? { boyfriend_id: boyfriendId } : {};
+      const params = aiCharacterId ? { ai_character_id: aiCharacterId } : {};
       const response = await api.get<ChatSession[]>("/chat/sessions", { params });
       return response.data;
     },
@@ -45,7 +45,7 @@ export function useSendMessage() {
     onSuccess: (data) => {
       // Invalidate sessions to refetch updated history
       queryClient.invalidateQueries({ 
-        queryKey: chatKeys.sessions(data.boyfriend_id) 
+        queryKey: chatKeys.sessions(data.ai_character_id) 
       });
       queryClient.invalidateQueries({ 
         queryKey: chatKeys.session(data.session_id) 
