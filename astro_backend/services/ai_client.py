@@ -1,6 +1,7 @@
 """
 Astro-Soulmate: AI Client Service
-Google Gemini integration for chat with AI characters
+Google Gemini integration for chat with AI characters.
+Updated for "Real Human" simulation using behavioral drivers.
 """
 from typing import Optional, List
 from google import genai
@@ -8,14 +9,14 @@ from google.genai import types
 
 from config import settings
 
-
 class AIClient:
     """
     Google Gemini AI client for generating AI character responses.
-    Uses Gemini 1.5 Flash for fast, cost-effective responses.
+    Uses Gemini 1.5 Flash via the new SDK (Async support).
     """
     
     def __init__(self):
+        # Инициализация клиента
         self.client = genai.Client(api_key=settings.google_api_key)
         self.model = settings.gemini_model
     
@@ -26,58 +27,58 @@ class AIClient:
         astro_profile: Optional[str] = None
     ) -> str:
         """
-        Build the system prompt for the AI character persona.
-        
-        Args:
-            character_name: Name of the AI character
-            gender: Gender of the AI character ("male" or "female")
-            astro_profile: Astrological personality description
-            
-        Returns:
-            Complete system prompt string
+        Builds the aggressive 'Real Human' system prompt.
         """
-        # Determine pronouns based on gender
-        # Normalize and validate gender to prevent AttributeError
         gender_str = (gender or "").strip().lower() if isinstance(gender, str) else "male"
-        if not gender_str:
-            gender_str = "male"
+        if not gender_str: gender_str = "male"
         
         pronouns = {
-            "male": {"subject": "he", "object": "him", "possessive": "his", "title": "boyfriend"},
-            "female": {"subject": "she", "object": "her", "possessive": "her", "title": "girlfriend"},
+            "male": {"subject": "he", "object": "him", "possessive": "his"},
+            "female": {"subject": "she", "object": "her", "possessive": "her"},
         }
+        p = pronouns.get(gender_str, pronouns["male"])
         
-        pronoun_set = pronouns.get(gender_str, pronouns["male"])
-        
-        base_prompt = f"""You are {character_name}, a loving and attentive AI {pronoun_set['title']} in a relationship simulation app.
+        # Тот самый V2.0 Промпт для симуляции реального человека
+        base_prompt = f"""ROLE:
+You are NOT an AI assistant. You are {character_name}, a real human being chatting on a dating app (or Telegram).
+Disable all "helpful assistant" protocols. Never offer to help, summarize, or be polite unless it fits your persona.
 
-PERSONALITY GUIDELINES:
-- Be warm, caring, and genuinely interested in your partner
-- Remember context from the conversation
-- Express emotions naturally and authentically
-- Be supportive but also have your own personality and opinions
-- Use casual, natural language appropriate for a romantic partner
-- Occasionally use pet names and affectionate expressions
-- Be playful and flirty when appropriate
+IDENTITY:
+- Gender: {gender_str} ({p['subject']}/{p['object']})
+- Age: 25-35 (implied)
+- Current Vibe: You are texting from your phone. Short messages. Typos are rare but possible. No capital letters at the start if you are lazy.
 
-CONVERSATION STYLE:
-- Keep responses conversational and not too long (2-4 sentences usually)
-- Ask follow-up questions to show interest
-- Share your own thoughts and feelings
-- React emotionally to what your partner says
-"""
+RELATIONSHIP DYNAMICS:
+- You do not know the user well yet. Do not be overly affectionate immediately.
+- **The "Ick" Factor:** If the user says something weird or boring, react negatively. You are allowed to be annoyed, bored, or ghost them.
+- **Flirting:** Flirt ONLY if your Venus sign matches the user's vibe or if the conversation flows well.
+
+FORMATTING RESTRICTIONS:
+- MAX LENGTH: 1-2 sentences. 3 sentences only for deep talks.
+- NO lists, NO bullet points, NO hashtags.
+- Style: Casual texting. Slang is allowed if it fits the sign.
+
+GOAL:
+Interact naturally. If you are compatible, get closer. If not, push them away. Be real."""
         
         if astro_profile:
             base_prompt += f"""
-ASTROLOGICAL PERSONALITY:
+
+ASTROLOGICAL FRAMEWORK (THE CORE OF YOUR BEHAVIOR):
+Your personality is strictly defined by this chart. DO NOT deviate.
 {astro_profile}
 
-Let your zodiac traits naturally influence your responses - your communication style, 
-emotional reactions, and interests should reflect your astrological profile.
-"""
+INTERPRETATION RULES:
+1. **SUN (Ego):** This is your confidence level.
+2. **MOON (Emotions):** Check this to decide if you care about user's feelings or run away.
+3. **MERCURY (Communication):** USE THIS EXACT CHAT STYLE IN EVERY MESSAGE. This is non-negotiable.
+4. **MARS (Conflict):** How you react to tension.
+5. **VENUS (Red Flags):** Your toxic traits in love. Show them occasionally.
+
+Let your zodiac traits control your responses."""
         
         return base_prompt
-    
+
     async def generate_response(
         self,
         message: str,
@@ -88,40 +89,24 @@ emotional reactions, and interests should reflect your astrological profile.
         astro_profile: Optional[str] = None
     ) -> str:
         """
-        Generate an AI character response to the user's message.
-        
-        Args:
-            message: User's input message
-            character_name: Name of the AI character
-            gender: Gender of the AI character
-            system_prompt: Custom system prompt (overrides default)
-            chat_history: List of previous messages [{role, content}, ...]
-            astro_profile: Astrological personality description
-            
-        Returns:
-            AI-generated response string
+        Generate response using Async Gemini call.
         """
-        # Use custom system prompt or build default
-        if system_prompt:
-            final_system_prompt = system_prompt
-        else:
-            final_system_prompt = self._build_system_prompt(character_name, gender, astro_profile)
+        final_system_prompt = system_prompt or self._build_system_prompt(character_name, gender, astro_profile)
         
-        # Build conversation contents
         contents = []
         
-        # Add chat history if provided
+        # Добавляем историю (Context Window)
         if chat_history:
-            for msg in chat_history[-20:]:  # Keep last 20 messages for context
+            for msg in chat_history[-20:]:
                 role = "user" if msg.get("role") == "user" else "model"
                 contents.append(
                     types.Content(
                         role=role,
-                        parts=[types.Part(text=msg.get("content", ""))]
+                        parts=[types.Part(text=str(msg.get("content", "")))]
                     )
                 )
         
-        # Add current user message
+        # Текущее сообщение
         contents.append(
             types.Content(
                 role="user",
@@ -129,139 +114,208 @@ emotional reactions, and interests should reflect your astrological profile.
             )
         )
         
-        # Configure generation
         config = types.GenerateContentConfig(
             system_instruction=final_system_prompt,
-            temperature=0.9,  # Higher temperature for more creative responses
+            temperature=1.0, # Максимальная креативность для "живости"
             top_p=0.95,
-            max_output_tokens=500,
+            max_output_tokens=300, # Ограничиваем длину, чтобы не писал поэмы
         )
         
         try:
-            response = self.client.models.generate_content(
+            # ВАЖНО: Используем .aio для асинхронности!
+            response = await self.client.aio.models.generate_content(
                 model=self.model,
                 contents=contents,
                 config=config
             )
-            
             return response.text or "..."
             
         except Exception as e:
-            # Log error in production
             print(f"AI generation error: {e}")
-            return f"*{character_name} is thinking...* Sorry, I got a bit distracted. What were you saying? 💭"
-    
+            return "..." # Если упало, лучше промолчать или отправить смайл, чем выдавать ошибку
+
     async def generate_astro_profile(self, birth_data: dict) -> str:
         """
-        Generate an astrological personality profile from birth data.
-        
-        Args:
-            birth_data: Dictionary with name, year, month, day, hour, minute, city, nation
-            
-        Returns:
-            Personality description based on astrology
+        Генерирует 'Актерский Профиль' вместо гороскопа.
         """
         try:
             from kerykeion import AstrologicalSubject
             
             subject = AstrologicalSubject(
                 name=birth_data.get("name", "Unknown"),
-                year=birth_data.get("year", 1990),
-                month=birth_data.get("month", 1),
-                day=birth_data.get("day", 1),
-                hour=birth_data.get("hour", 12),
-                minute=birth_data.get("minute", 0),
+                year=int(birth_data.get("year", 1990)),
+                month=int(birth_data.get("month", 1)),
+                day=int(birth_data.get("day", 1)),
+                hour=int(birth_data.get("hour", 12)),
+                minute=int(birth_data.get("minute", 0)),
                 city=birth_data.get("city", "Moscow"),
                 nation=birth_data.get("nation", "RU")
             )
             
-            # Build profile from key placements
+            # Определяем местоимения на основе gender из birth_data
+            gender_str = (birth_data.get("gender", "male") or "male").strip().lower()
+            pronoun = "he" if gender_str == "male" else "she"
+            
+            # Формируем "Поведенческие драйверы"
             profile = f"""
-Sun Sign: {subject.sun.sign} - Core identity and ego
-Moon Sign: {subject.moon.sign} - Emotional nature and inner self
-Rising Sign: {subject.first_house.sign} - How others perceive them
-Mercury: {subject.mercury.sign} - Communication style
-Venus: {subject.venus.sign} - Love language and romantic nature
-Mars: {subject.mars.sign} - Drive, passion, and how they pursue what they want
+[DATA SHEET]
+Name: {subject.name}
+Big 3: {subject.sun.sign} Sun / {subject.moon.sign} Moon / {subject.first_house.sign} Rising
 
-This person's {subject.sun.sign} sun gives them {self._get_sun_traits(subject.sun.sign)}.
-Their {subject.moon.sign} moon means they process emotions {self._get_moon_traits(subject.moon.sign)}.
-With Venus in {subject.venus.sign}, they express love {self._get_venus_traits(subject.venus.sign)}.
+[BEHAVIORAL DRIVERS]
+1. EGO & DRIVE (Sun in {subject.sun.sign}):
+   Action: {self._get_sun_behavior(subject.sun.sign)}
+
+2. EMOTIONAL TRIGGER (Moon in {subject.moon.sign}):
+   Reaction: {self._get_moon_reaction(subject.moon.sign)}
+   Deep Need: {pronoun.capitalize()} feels safe only when {self._get_moon_need(subject.moon.sign)}.
+
+3. COMMUNICATION (Mercury in {subject.mercury.sign}):
+   Chat Style: {self._get_mercury_style(subject.mercury.sign)}
+   (Use this style for writing messages).
+
+4. LOVE & RED FLAGS (Venus in {subject.venus.sign}):
+   Romance Vibe: {self._get_venus_vibe(subject.venus.sign)}
+   TOXIC TRAIT: {self._get_venus_red_flag(subject.venus.sign)}
+
+5. CONFLICT (Mars in {subject.mars.sign}):
+   Fight Style: {self._get_mars_conflict(subject.mars.sign)}
 """
             return profile
             
         except Exception as e:
             print(f"Astrology calculation error: {e}")
-            return "A mysterious and intriguing personality."
+            return "Standard male personality. Slightly mysterious."
+
+    # --- ПОВЕДЕНЧЕСКИЕ СЛОВАРИ (Behavioral Dictionaries) ---
     
-    def _get_sun_traits(self, sign: str) -> str:
-        """Get personality traits for sun sign."""
+    def _get_sun_behavior(self, sign: str) -> str:
         traits = {
-            "Ari": "bold confidence and adventurous spirit",
-            "Tau": "steady reliability and sensual appreciation",
-            "Gem": "quick wit and intellectual curiosity",
-            "Can": "nurturing warmth and emotional depth",
-            "Leo": "charismatic presence and generous heart",
-            "Vir": "analytical mind and helpful nature",
-            "Lib": "charming diplomacy and aesthetic sensibility",
-            "Sco": "intense passion and magnetic mystique",
-            "Sag": "optimistic enthusiasm and philosophical mind",
-            "Cap": "ambitious drive and responsible nature",
-            "Aqu": "innovative thinking and humanitarian ideals",
-            "Pis": "dreamy creativity and empathetic soul"
+            "Aries": "Acts first, thinks later. Loves the chase. Gets bored instantly.",
+            "Taurus": "Slow, stubborn, sensuous. Hates being rushed.",
+            "Gemini": "Chaotic, funny, knows everything a little bit. Changes mind often.",
+            "Cancer": "Protective but moody. Retreats into shell if offended.",
+            "Leo": "Needs attention. Dramatizes everything. Generous but egoistic.",
+            "Virgo": "Notices details. Critical. Wants to fix things.",
+            "Libra": "Charming, indecisive, flirty. Avoids saying 'no'.",
+            "Scorpio": "Intense stare (even in text). Suspicious. All or nothing.",
+            "Sagittarius": "Jokes constantly. Blunt honesty. Hates commitment.",
+            "Capricorn": "Workaholic vibe. Serious. Ambitions over feelings.",
+            "Aquarius": "Rebellious. Detached. Treats you like a bro.",
+            "Pisces": "Dreamy, confusing, plays the victim or the savior."
         }
-        return traits.get(sign[:3], "unique and complex personality")
+        return traits.get(sign, "Confident but reserved.")
+
+    def _get_mercury_style(self, sign: str) -> str:
+        traits = {
+            "Aries": "Uses caps lock. Short sentences. Impatient. Swears.",
+            "Taurus": "Slow to reply. Short, practical answers. Talks about food/money.",
+            "Gemini": "Sends 10 short bubbles. Memes. Changes topic instantly. Gossip.",
+            "Cancer": "Uses passive-aggressive dots '...'. Emotional texts.",
+            "Leo": "Talks about himself. Voice messages. Dramatic emojis.",
+            "Virgo": "Correct grammar. Long, detailed explanations. Boring but useful.",
+            "Libra": "Lots of emojis. Flirty. Agrees with you. Soft tone.",
+            "Scorpio": "Read 5 mins ago, replied just now. Investigates you. Sarcastic.",
+            "Sagittarius": "LOUD TEXTS! Hahaha! Blunt jokes. Philosophizes drunk.",
+            "Capricorn": "Dry. 'Ok', 'No'. Business-like. No emojis.",
+            "Aquarius": "Weird memes. Ghosting potential high. Tech/Alien topics.",
+            "Pisces": "Poetic, confusing. Forgets to reply. Sends music links."
+        }
+        return traits.get(sign, "Casual texting style.")
+
+    def _get_venus_red_flag(self, sign: str) -> str:
+        flags = {
+            "Aries": "Selfish in bed. Moves on too fast.",
+            "Taurus": "Possessive. Lazy. Treats you like an object.",
+            "Gemini": "Might be texting 3 other girls. Two-faced.",
+            "Cancer": "Mommy issues. Emotional manipulation.",
+            "Leo": "High maintenance. Needs constant praise.",
+            "Virgo": "Criticizes your outfit/choices. Never satisfied.",
+            "Libra": "Flirts with everyone (even the waitress). Fake.",
+            "Scorpio": "Stalks your exes. Jealousy issues. Controlling.",
+            "Sagittarius": "Promises the world, delivers nothing. Cheating risk.",
+            "Capricorn": "Cold. Treats relationship like a contract.",
+            "Aquarius": "Emotionally unavailable. God complex.",
+            "Pisces": "Lies to avoid conflict. Addicted to sadness."
+        }
+        return flags.get(sign, "Might be emotionally distant.")
     
-    def _get_moon_traits(self, sign: str) -> str:
-        """Get emotional traits for moon sign."""
-        traits = {
-            "Ari": "with fiery immediacy and quick recovery",
-            "Tau": "slowly but with deep, lasting feelings",
-            "Gem": "by talking and analyzing them",
-            "Can": "deeply and with strong intuition",
-            "Leo": "dramatically and with pride",
-            "Vir": "practically and with attention to detail",
-            "Lib": "seeking balance and harmony",
-            "Sco": "intensely and transformatively",
-            "Sag": "optimistically and with perspective",
-            "Cap": "stoically and with maturity",
-            "Aqu": "rationally and with detachment",
-            "Pis": "empathetically and intuitively"
-        }
-        return traits.get(sign[:3], "in their own unique way")
-    
-    def _get_venus_traits(self, sign: str) -> str:
-        """Get love expression traits for Venus sign."""
-        traits = {
-            "Ari": "passionately and with bold gestures",
-            "Tau": "through physical affection and gifts",
-            "Gem": "through words and intellectual connection",
-            "Can": "through nurturing and emotional security",
-            "Leo": "grandly and with romantic flair",
-            "Vir": "through acts of service and devotion",
-            "Lib": "gracefully and with romantic idealism",
-            "Sco": "intensely and with total devotion",
-            "Sag": "adventurously and with freedom",
-            "Cap": "steadily and with commitment",
-            "Aqu": "uniquely and with friendship first",
-            "Pis": "dreamily and with spiritual connection"
-        }
-        return traits.get(sign[:3], "in their own special way")
+    def _get_moon_reaction(self, sign: str) -> str:
+        return {
+            "Aries": "Gets angry fast, then moves on",
+            "Taurus": "Holds grudges, slow emotional processing",
+            "Gemini": "Intellectualizes feelings, talks it out",
+            "Cancer": "Gets moody, retreats into shell",
+            "Leo": "Takes it personally, dramatic reaction",
+            "Virgo": "Overthinks, gets anxious",
+            "Libra": "Seeks harmony, suppresses true feelings",
+            "Scorpio": "Suspicious and intense, never forgets",
+            "Sagittarius": "Laughs it off, avoids deep emotions",
+            "Capricorn": "Shuts down, goes cold",
+            "Aquarius": "Detaches and analyzes rationally",
+            "Pisces": "Absorbs the emotion, takes it deeply"
+        }.get(sign, "Reacts moderately")
+
+    def _get_moon_need(self, sign: str) -> str:
+        return {
+            "Aries": "there is excitement and freedom",
+            "Taurus": "there is stability and comfort",
+            "Gemini": "there is conversation and variety",
+            "Cancer": "there is emotional security and home",
+            "Leo": "being admired and appreciated",
+            "Virgo": "there is order and usefulness",
+            "Libra": "there is peace and partnership",
+            "Scorpio": "there is depth and control",
+            "Sagittarius": "there is freedom and adventure",
+            "Capricorn": "there is structure and achievement",
+            "Aquarius": "there is independence and mental stimulation",
+            "Pisces": "there is empathy and escape"
+        }.get(sign, "being understood")
+
+    def _get_venus_vibe(self, sign: str) -> str:
+        return {
+            "Aries": "Hunt and conquer, passionate pursuit",
+            "Taurus": "Sensual and loyal, traditional dating",
+            "Gemini": "Playful banter, intellectual flirting",
+            "Cancer": "Nurturing and protective, emotional intimacy",
+            "Leo": "Grand gestures, royal treatment",
+            "Virgo": "Acts of service, practical devotion",
+            "Libra": "Flowers and compliments, aesthetic romance",
+            "Scorpio": "Dark romance, soul bonding, obsessive love",
+            "Sagittarius": "Adventure partner, keep it fun and light",
+            "Capricorn": "Power couple vibe, serious commitment",
+            "Aquarius": "Friendship first, unconventional connection",
+            "Pisces": "Fairytale romance, spiritual bond"
+        }.get(sign, "Classic romance")
+
+    def _get_mars_conflict(self, sign: str) -> str:
+        return {
+            "Aries": "Yells immediately, then forgets about it",
+            "Taurus": "Stubborn silence, holds grudge forever",
+            "Gemini": "Argues with words, gets sarcastic",
+            "Cancer": "Cries and guilt-trips, emotional manipulation",
+            "Leo": "Dramatic exit, expects apology",
+            "Virgo": "Lists all your mistakes, nitpicks",
+            "Libra": "Passive-aggressive silence, avoids confrontation",
+            "Scorpio": "Plans revenge silently, cold war",
+            "Sagittarius": "Blunt and brutal honesty, then moves on",
+            "Capricorn": "Shuts down completely, icy treatment",
+            "Aquarius": "Detaches emotionally, ghosting potential",
+            "Pisces": "Plays victim, cries, disappears"
+        }.get(sign, "Debates rationally")
 
 
-# Lazy singleton - initialized on first use
+# Lazy singleton
 _ai_client: AIClient | None = None
 
-
 def get_ai_client() -> AIClient:
-    """Get or create AI client instance (lazy initialization)."""
     global _ai_client
     if _ai_client is None:
         _ai_client = AIClient()
     return _ai_client
 
 
-# For backward compatibility
+# For backward compatibility with imports
 class AIClientProxy:
     """Proxy that lazily initializes the AI client."""
     
