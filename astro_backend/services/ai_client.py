@@ -3,11 +3,32 @@ Astro-Soulmate: AI Client Service
 Google Gemini integration for chat with AI characters.
 Updated for "Real Human" simulation using behavioral drivers.
 """
+import logging
 from typing import Optional, List
 from google import genai
 from google.genai import types
 
 from config import settings
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_int(value, default: int) -> int:
+    """
+    Safely convert value to int with fallback.
+    
+    Args:
+        value: Value to convert (can be None, str, int, or any type)
+        default: Default value to return if conversion fails
+        
+    Returns:
+        Converted int or default value
+    """
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
 
 class AIClient:
     """
@@ -30,7 +51,8 @@ class AIClient:
         Builds the aggressive 'Real Human' system prompt.
         """
         gender_str = (gender or "").strip().lower() if isinstance(gender, str) else "male"
-        if not gender_str: gender_str = "male"
+        if not gender_str:
+            gender_str = "male"
         
         pronouns = {
             "male": {"subject": "he", "object": "him", "possessive": "his"},
@@ -116,9 +138,9 @@ Let your zodiac traits control your responses."""
         
         config = types.GenerateContentConfig(
             system_instruction=final_system_prompt,
-            temperature=1.0, # Максимальная креативность для "живости"
+            temperature=0.9,  # High creativity for liveliness, but not maximum to maintain consistency
             top_p=0.95,
-            max_output_tokens=300, # Ограничиваем длину, чтобы не писал поэмы
+            max_output_tokens=300,  # Ограничиваем длину, чтобы не писал поэмы
         )
         
         try:
@@ -130,9 +152,27 @@ Let your zodiac traits control your responses."""
             )
             return response.text or "..."
             
+        except TimeoutError as e:
+            # Network timeout - safe to retry
+            logger.error(f"Timeout generating AI response for {character_name}: {e}")
+            return "..."
+            
+        except (ConnectionError, OSError) as e:
+            # Network/connection issues - temporary, safe fallback
+            logger.error(f"Network error generating AI response for {character_name}: {e}")
+            return "..."
+            
+        except ValueError as e:
+            # Invalid input/config - log with context and return fallback
+            logger.exception(f"Invalid configuration for AI generation (character: {character_name})")
+            return "..."
+            
         except Exception as e:
-            print(f"AI generation error: {e}")
-            return "..." # Если упало, лучше промолчать или отправить смайл, чем выдавать ошибку
+            # Unexpected errors - log full stack trace
+            logger.exception(f"Unexpected error generating AI response for {character_name}")
+            # Could re-raise here if we want upstream handling:
+            # raise
+            return "..."
 
     async def generate_astro_profile(self, birth_data: dict) -> str:
         """
@@ -143,11 +183,11 @@ Let your zodiac traits control your responses."""
             
             subject = AstrologicalSubject(
                 name=birth_data.get("name", "Unknown"),
-                year=int(birth_data.get("year", 1990)),
-                month=int(birth_data.get("month", 1)),
-                day=int(birth_data.get("day", 1)),
-                hour=int(birth_data.get("hour", 12)),
-                minute=int(birth_data.get("minute", 0)),
+                year=_safe_int(birth_data.get("year"), 1990),
+                month=_safe_int(birth_data.get("month"), 1),
+                day=_safe_int(birth_data.get("day"), 1),
+                hour=_safe_int(birth_data.get("hour"), 12),
+                minute=_safe_int(birth_data.get("minute"), 0),
                 city=birth_data.get("city", "Moscow"),
                 nation=birth_data.get("nation", "RU")
             )
@@ -183,13 +223,48 @@ Big 3: {subject.sun.sign} Sun / {subject.moon.sign} Moon / {subject.first_house.
 """
             return profile
             
+        except ImportError as e:
+            # Kerykeion not installed - recoverable
+            logger.error(f"Failed to import kerykeion library: {e}")
+            gender = birth_data.get("gender", "unspecified")
+            if gender == "female":
+                return "Standard female personality. Slightly mysterious."
+            elif gender == "male":
+                return "Standard male personality. Slightly mysterious."
+            else:
+                return "Standard personality. Slightly mysterious."
+            
+        except (ValueError, KeyError, AttributeError) as e:
+            # Invalid/missing birth data or astrology calculation issues - recoverable
+            logger.error(f"Invalid birth data or calculation error: {e}", exc_info=True)
+            gender = birth_data.get("gender", "unspecified")
+            if gender == "female":
+                return "Standard female personality. Slightly mysterious."
+            elif gender == "male":
+                return "Standard male personality. Slightly mysterious."
+            else:
+                return "Standard personality. Slightly mysterious."
+            
+        except RuntimeError as e:
+            # Runtime errors from astrology library - recoverable
+            logger.error(f"Runtime error in astrology calculation: {e}", exc_info=True)
+            gender = birth_data.get("gender", "unspecified")
+            if gender == "female":
+                return "Standard female personality. Slightly mysterious."
+            elif gender == "male":
+                return "Standard male personality. Slightly mysterious."
+            else:
+                return "Standard personality. Slightly mysterious."
+            
         except Exception as e:
-            print(f"Astrology calculation error: {e}")
-            return "Standard male personality. Slightly mysterious."
+            # Unexpected errors - log and re-raise to avoid silent failures
+            logger.exception(f"Unexpected error calculating astrology profile for {birth_data.get('name', 'Unknown')}")
+            raise
 
     # --- ПОВЕДЕНЧЕСКИЕ СЛОВАРИ (Behavioral Dictionaries) ---
     
     def _get_sun_behavior(self, sign: str) -> str:
+        sign_key = sign[:3]
         traits = {
             "Aries": "Acts first, thinks later. Loves the chase. Gets bored instantly.",
             "Taurus": "Slow, stubborn, sensuous. Hates being rushed.",
@@ -204,7 +279,7 @@ Big 3: {subject.sun.sign} Sun / {subject.moon.sign} Moon / {subject.first_house.
             "Aquarius": "Rebellious. Detached. Treats you like a bro.",
             "Pisces": "Dreamy, confusing, plays the victim or the savior."
         }
-        return traits.get(sign, "Confident but reserved.")
+        return traits.get(sign_key, "Confident but reserved.")
 
     def _get_mercury_style(self, sign: str) -> str:
         traits = {
@@ -305,13 +380,19 @@ Big 3: {subject.sun.sign} Sun / {subject.moon.sign} Moon / {subject.first_house.
         }.get(sign, "Debates rationally")
 
 
-# Lazy singleton
+# Thread-safe lazy singleton
+import threading
+
+_ai_client_lock = threading.Lock()
 _ai_client: AIClient | None = None
 
 def get_ai_client() -> AIClient:
+    """Get or create AI client instance (thread-safe lazy initialization)."""
     global _ai_client
     if _ai_client is None:
-        _ai_client = AIClient()
+        with _ai_client_lock:
+            if _ai_client is None:
+                _ai_client = AIClient()
     return _ai_client
 
 
