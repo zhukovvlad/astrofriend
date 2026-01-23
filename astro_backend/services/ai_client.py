@@ -264,7 +264,8 @@ Big 3: {subject.sun.sign} Sun / {subject.moon.sign} Moon / {subject.first_house.
     # --- ПОВЕДЕНЧЕСКИЕ СЛОВАРИ (Behavioral Dictionaries) ---
     
     def _get_sun_behavior(self, sign: str) -> str:
-        sign_key = sign[:3]
+        # Normalize sign name to handle variations in capitalization
+        sign_normalized = sign.strip().capitalize()
         traits = {
             "Aries": "Acts first, thinks later. Loves the chase. Gets bored instantly.",
             "Taurus": "Slow, stubborn, sensuous. Hates being rushed.",
@@ -279,7 +280,7 @@ Big 3: {subject.sun.sign} Sun / {subject.moon.sign} Moon / {subject.first_house.
             "Aquarius": "Rebellious. Detached. Treats you like a bro.",
             "Pisces": "Dreamy, confusing, plays the victim or the savior."
         }
-        return traits.get(sign_key, "Confident but reserved.")
+        return traits.get(sign_normalized, "Confident but reserved.")
 
     def _get_mercury_style(self, sign: str) -> str:
         traits = {
