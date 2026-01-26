@@ -2,7 +2,7 @@
 Astro-Soulmate: Authentication Service
 JWT Token generation, password hashing, and httpOnly cookie authentication
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import uuid
 
@@ -69,9 +69,9 @@ def create_access_token(
         Encoded JWT token string
     """
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
+        expire = datetime.now(timezone.utc) + timedelta(
             minutes=settings.jwt_access_token_expire_minutes
         )
     
@@ -79,7 +79,7 @@ def create_access_token(
         "sub": str(user_id),
         "email": email,
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(timezone.utc),
     }
     
     encoded_jwt = jwt.encode(

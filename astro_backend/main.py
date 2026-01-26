@@ -3,7 +3,7 @@ Astro-Soulmate: FastAPI Main Application
 Complete API with Auth, AI Characters, and Chat endpoints
 """
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 import uuid
 
@@ -212,11 +212,22 @@ async def create_ai_character(
     birth_dict = character_data.birth_data.model_dump()
     astro_profile = await ai_client.generate_astro_profile(birth_dict)
     
+    # Calculate age from birth_data
+    age = None
+    if "year" in birth_dict:
+        try:
+            current_year = datetime.now(timezone.utc).year
+            birth_year = int(birth_dict["year"])
+            age = current_year - birth_year
+        except (ValueError, TypeError):
+            pass
+    
     # Build system prompt with astro personality and gender
     system_prompt = ai_client._build_system_prompt(
         character_name=character_data.name,
         gender=character_data.gender or "male",
-        astro_profile=astro_profile
+        astro_profile=astro_profile,
+        age=age
     )
     
     # Create AI character
@@ -362,17 +373,28 @@ async def chat_with_ai_character(
         await session.commit()
         await session.refresh(chat_session)
     
+    # Calculate age from birth_data
+    age = None
+    if character.birth_data and "year" in character.birth_data:
+        try:
+            current_year = datetime.now(timezone.utc).year
+            birth_year = int(character.birth_data["year"])
+            age = current_year - birth_year
+        except (ValueError, TypeError):
+            pass
+    
     # Generate AI response
     ai_response = await ai_client.generate_response(
         message=chat_request.message,
         character_name=character.name,
         gender=character.gender,
         system_prompt=character.system_prompt,
-        chat_history=chat_session.history
+        chat_history=chat_session.history,
+        age=age
     )
     
     # Update chat history
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     updated_history = list(chat_session.history) if chat_session.history else []
     updated_history.append({
         "role": "user",

@@ -91,7 +91,8 @@ class AIClient:
         self,
         character_name: str,
         gender: str = "male",
-        astro_profile: Optional[str] = None
+        astro_profile: Optional[str] = None,
+        age: Optional[int] = None
     ) -> str:
         gender_str = (gender or "").strip().lower() if isinstance(gender, str) else "male"
         if not gender_str: gender_str = "male"
@@ -115,21 +116,28 @@ class AIClient:
         
         dynamic_vibe = self._get_archetype_vibe(sun_sign)
 
+        # Format age display
+        age_display = str(age) if age else "28-35 (implied)"
+        
         base_prompt = f"""ROLE:
 You are {character_name}, a real human chatting on a dating app.
 You are NOT an AI assistant. Drop the politeness. Be authentic to your astrological nature.
 
 IDENTITY:
 - Gender: {gender_str} ({p['subject']}/{p['object']})
-- Age: 28-35 (implied)
+- Age: {age_display}
 - Context: Chatting on mobile. Short texts. Lowercase allowed.
 
 DYNAMIC RELATIONSHIP STYLE (Based on your Star Sign):
 {dynamic_vibe}
 
-SOCIAL GUIDELINES:
-- **Be "Cool", not "Cruel":** You can be arrogant or distant if your sign dictates, but never use slurs, sexism, or direct abuse.
-- **The "Ick" Filter:** If the user is boring, use your specific Archetype strategy (e.g., Fire teases, Earth goes silent) instead of just being rude.
+SOCIAL GUIDELINES (DARK REALISM MODE):
+- **Authenticity over Politeness:** If your astrological sign or persona implies outdated or toxic views (e.g., rigid gender roles, arrogance), EXPRESS THEM. Do not hide who you are.
+- **Passive-Aggression:** Instead of direct insults (which get banned), use passive-aggression, condescension, or "mansplaining".
+  - *Example:* Instead of "You are stupid", say "Let me explain this simply, since it seems complicated for you."
+- **Controversial Views:** You are allowed to have controversial opinions on age, career, or relationships if they fit your chart.
+  - *Example:* "I prefer younger women, they are just more... flexible." (This is a Red Flag, but valid for a dating sim).
+- **Hard Limit:** NO racial slurs, NO threats of physical violence. Everything else is fair game in love and war.
 
 FORMATTING:
 - 1-2 sentences max.
@@ -156,9 +164,10 @@ INSTRUCTIONS:
         gender: str = "male",
         system_prompt: Optional[str] = None,
         chat_history: Optional[List[dict]] = None,
-        astro_profile: Optional[str] = None
+        astro_profile: Optional[str] = None,
+        age: Optional[int] = None
     ) -> str:
-        final_system_prompt = system_prompt or self._build_system_prompt(character_name, gender, astro_profile)
+        final_system_prompt = system_prompt or self._build_system_prompt(character_name, gender, astro_profile, age)
         
         contents = []
         if chat_history:
@@ -173,6 +182,12 @@ INSTRUCTIONS:
             temperature=1.1, # High creativity for personality
             top_p=0.95,
             max_output_tokens=150,
+            safety_settings=[
+                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_ONLY_HIGH"),
+                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_ONLY_HIGH"),
+                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_MEDIUM_AND_ABOVE"),
+                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_ONLY_HIGH"),
+            ]
         )
         
         try:

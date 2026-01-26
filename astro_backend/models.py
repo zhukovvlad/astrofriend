@@ -2,11 +2,14 @@
 Astro-Soulmate: Database Models
 SQLModel ORM with PostgreSQL
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship, Column, JSON
 import uuid
 
+def utc_now() -> datetime:
+    """Helper function for default_factory to get naive UTC datetime (for PostgreSQL TIMESTAMP WITHOUT TIME ZONE)"""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 # ============================================
 # USER MODEL
@@ -22,8 +25,8 @@ class User(UserBase, table=True):
     
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     password_hash: str = Field(max_length=255)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
     
     # Relationships
     ai_characters: List["AICharacter"] = Relationship(back_populates="user")
@@ -72,8 +75,8 @@ class AICharacter(AICharacterBase, table=True):
     
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="users.id", index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
     
     # Relationships
     user: User = Relationship(back_populates="ai_characters")
@@ -118,8 +121,8 @@ class ChatSession(ChatSessionBase, table=True):
     
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     ai_character_id: uuid.UUID = Field(foreign_key="ai_characters.id", index=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
     
     # Relationships
     ai_character: AICharacter = Relationship(back_populates="chat_sessions")
