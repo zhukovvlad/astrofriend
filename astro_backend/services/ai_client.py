@@ -116,8 +116,8 @@ class AIClient:
         
         dynamic_vibe = self._get_archetype_vibe(sun_sign)
 
-        # Format age display
-        age_display = str(age) if age else "28-35 (implied)"
+        # Format age display (explicit None check to allow age=0)
+        age_display = str(age) if age is not None else "28-35 (implied)"
         
         base_prompt = f"""ROLE:
 You are {character_name}, a real human chatting on a dating app.
@@ -183,10 +183,22 @@ INSTRUCTIONS:
             top_p=0.95,
             max_output_tokens=150,
             safety_settings=[
-                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_ONLY_HIGH"),
-                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_ONLY_HIGH"),
-                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_MEDIUM_AND_ABOVE"),
-                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_ONLY_HIGH"),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                    threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                    threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                    threshold=types.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+                ),
+                types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold=types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                ),
             ]
         )
         

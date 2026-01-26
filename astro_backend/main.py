@@ -20,7 +20,8 @@ from models import (
     AICharacter, AICharacterCreate, AICharacterRead,
     ChatSession, ChatSessionCreate, ChatSessionRead,
     ChatRequest, ChatResponse,
-    Token
+    Token,
+    utc_now
 )
 from services.auth import (
     hash_password,
@@ -31,6 +32,52 @@ from services.auth import (
     clear_auth_cookie
 )
 from services.ai_client import ai_client
+
+
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+def compute_age_from_birth_dict(birth_data: dict) -> Optional[int]:
+    """
+    Compute age from birth data dictionary using full birthdate.
+    
+    Args:
+        birth_data: Dictionary containing 'year', 'month', 'day' keys
+        
+    Returns:
+        Age in years if valid, None if invalid or future date
+    """
+    if not birth_data:
+        return None
+    
+    try:
+        year = int(birth_data.get("year", 0))
+        month = int(birth_data.get("month", 1))
+        day = int(birth_data.get("day", 1))
+        
+        # Validate date components
+        if year <= 0 or month < 1 or month > 12 or day < 1 or day > 31:
+            return None
+        
+        birthdate = datetime(year, month, day)
+        today = datetime.now(timezone.utc).replace(tzinfo=None)
+        
+        # Check if birthdate is in the future
+        if birthdate > today:
+            return None
+        
+        # Calculate age considering full birthdate
+        age = today.year - birthdate.year
+        
+        # Adjust if birthday hasn't occurred yet this year
+        if (today.month, today.day) < (birthdate.month, birthdate.day):
+            age -= 1
+        
+        # Return None for negative ages (shouldn't happen with future date check, but safety)
+        return age if age >= 0 else None
+        
+    except (ValueError, TypeError, KeyError):
+        return None
 
 
 # ============================================
@@ -213,14 +260,7 @@ async def create_ai_character(
     astro_profile = await ai_client.generate_astro_profile(birth_dict)
     
     # Calculate age from birth_data
-    age = None
-    if "year" in birth_dict:
-        try:
-            current_year = datetime.now(timezone.utc).year
-            birth_year = int(birth_dict["year"])
-            age = current_year - birth_year
-        except (ValueError, TypeError):
-            pass
+    age = compute_age_from_birth_dict(birth_dict)
     
     # Build system prompt with astro personality and gender
     system_prompt = ai_client._build_system_prompt(
@@ -374,14 +414,7 @@ async def chat_with_ai_character(
         await session.refresh(chat_session)
     
     # Calculate age from birth_data
-    age = None
-    if character.birth_data and "year" in character.birth_data:
-        try:
-            current_year = datetime.now(timezone.utc).year
-            birth_year = int(character.birth_data["year"])
-            age = current_year - birth_year
-        except (ValueError, TypeError):
-            pass
+    age = compute_age_from_birth_dict(character.birth_data)
     
     # Generate AI response
     ai_response = await ai_client.generate_response(
@@ -394,7 +427,7 @@ async def chat_with_ai_character(
     )
     
     # Update chat history
-    timestamp = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+    timestamp = utc_now().isoformat()
     updated_history = list(chat_session.history) if chat_session.history else []
     updated_history.append({
         "role": "user",
