@@ -84,7 +84,7 @@ function App() {
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/chat/:boyfriendId" element={<Chat />} />
+              <Route path="/chat/:characterId" element={<Chat />} />
             </Route>
             
             {/* Default redirect */}

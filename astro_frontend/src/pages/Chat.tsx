@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useBoyfriend } from "@/hooks/useBoyfriends";
+import { useAICharacter } from "@/hooks/useAICharacters";
 import { useChatSessions, useSendMessage } from "@/hooks/useChat";
 import type { ChatMessage } from "@/types";
 
@@ -106,11 +106,11 @@ const deduplicateMessages = (sessionHistory: ChatMessage[], optimisticMessages: 
 };
 
 export default function Chat() {
-  const { boyfriendId } = useParams<{ boyfriendId: string }>();
+  const { characterId } = useParams<{ characterId: string }>();
   const navigate = useNavigate();
   
-  const { data: boyfriend, isLoading: loadingBoyfriend } = useBoyfriend(boyfriendId!);
-  const { data: sessions } = useChatSessions(boyfriendId);
+  const { data: character, isLoading: loadingCharacter } = useAICharacter(characterId!);
+  const { data: sessions } = useChatSessions(characterId);
   const sendMessage = useSendMessage();
   
   const [message, setMessage] = useState("");
@@ -164,7 +164,7 @@ export default function Chat() {
   // Handle send message
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !boyfriendId || sendMessage.isPending) return;
+    if (!message.trim() || !characterId || sendMessage.isPending) return;
 
     const userMessage: ChatMessage = {
       role: "user",
@@ -182,7 +182,7 @@ export default function Chat() {
 
     try {
       const response = await sendMessage.mutateAsync({
-        boyfriend_id: boyfriendId,
+        ai_character_id: characterId,
         message: userMessage.content,
         session_id: currentSessionId || undefined,
       });
@@ -222,7 +222,7 @@ export default function Chat() {
     setShowSidebar(false);
   };
 
-  if (loadingBoyfriend) {
+  if (loadingCharacter) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -230,7 +230,7 @@ export default function Chat() {
     );
   }
 
-  if (!boyfriend) {
+  if (!character) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <p className="text-muted-foreground">Soulmate not found</p>
@@ -269,7 +269,7 @@ export default function Chat() {
             </Avatar>
             
             <div>
-              <h1 className="font-semibold">{boyfriend.name}</h1>
+              <h1 className="font-semibold">{character.name}</h1>
               <p className="text-xs text-muted-foreground">Online</p>
             </div>
           </div>
@@ -370,7 +370,7 @@ export default function Chat() {
                     <Sparkles className="w-10 h-10 text-white" />
                   </motion.div>
                   <h3 className="text-lg font-semibold mb-2">
-                    Start chatting with {boyfriend.name}
+                    Start chatting with {character.name}
                   </h3>
                   <p className="text-sm text-muted-foreground max-w-sm">
                     Your cosmic companion is ready to connect. Send a message to begin your journey together.

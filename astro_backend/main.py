@@ -1,6 +1,6 @@
 """
 Astro-Soulmate: FastAPI Main Application
-Complete API with Auth, Boyfriends, and Chat endpoints
+Complete API with Auth, AI Characters, and Chat endpoints
 """
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -17,7 +17,7 @@ from config import settings
 from database import get_session, init_db
 from models import (
     User, UserCreate, UserRead,
-    Boyfriend, BoyfriendCreate, BoyfriendRead,
+    AICharacter, AICharacterCreate, AICharacterRead,
     ChatSession, ChatSessionCreate, ChatSessionRead,
     ChatRequest, ChatResponse,
     Token
@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
 # ============================================
 app = FastAPI(
     title=settings.app_name,
-    description="AI Boyfriend Relationship Simulator - Find your Astro Soulmate! 💫",
+    description="AI Character Relationship Simulator - Find your Astro Soulmate! 💫",
     version="0.1.0",
     lifespan=lifespan
 )
@@ -194,118 +194,118 @@ async def get_current_user(
 
 
 # ============================================
-# BOYFRIEND ENDPOINTS (Protected)
+# AI CHARACTER ENDPOINTS (Protected)
 # ============================================
-@app.post("/boyfriends", response_model=BoyfriendRead, status_code=status.HTTP_201_CREATED, tags=["Boyfriends"])
-async def create_boyfriend(
-    boyfriend_data: BoyfriendCreate,
+@app.post("/ai-characters", response_model=AICharacterRead, status_code=status.HTTP_201_CREATED, tags=["AI Characters"])
+async def create_ai_character(
+    character_data: AICharacterCreate,
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Create a new AI boyfriend persona.
+    Create a new AI character persona.
     
-    - **name**: Display name for your boyfriend
+    - **name**: Display name for your AI character
     - **birth_data**: Astrological birth data for personality generation
     """
     # Generate astrological profile
-    birth_dict = boyfriend_data.birth_data.model_dump()
+    birth_dict = character_data.birth_data.model_dump()
     astro_profile = await ai_client.generate_astro_profile(birth_dict)
     
     # Build system prompt with astro personality and gender
     system_prompt = ai_client._build_system_prompt(
-        boyfriend_name=boyfriend_data.name,
-        gender=boyfriend_data.gender or "male",
+        character_name=character_data.name,
+        gender=character_data.gender or "male",
         astro_profile=astro_profile
     )
     
-    # Create boyfriend
-    new_boyfriend = Boyfriend(
+    # Create AI character
+    new_character = AICharacter(
         user_id=current_user_id,
-        name=boyfriend_data.name,
-        gender=boyfriend_data.gender or "male",
+        name=character_data.name,
+        gender=character_data.gender or "male",
         birth_data=birth_dict,
         system_prompt=system_prompt
     )
     
-    session.add(new_boyfriend)
+    session.add(new_character)
     await session.commit()
-    await session.refresh(new_boyfriend)
+    await session.refresh(new_character)
     
-    return new_boyfriend
+    return new_character
 
 
-@app.get("/boyfriends", response_model=List[BoyfriendRead], tags=["Boyfriends"])
-async def list_boyfriends(
+@app.get("/ai-characters", response_model=List[AICharacterRead], tags=["AI Characters"])
+async def list_ai_characters(
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    List all boyfriends created by the current user.
+    List all AI characters created by the current user.
     
-    Returns boyfriends sorted by creation date (newest first).
+    Returns characters sorted by creation date (newest first).
     """
     statement = (
-        select(Boyfriend)
-        .where(Boyfriend.user_id == current_user_id)
-        .order_by(Boyfriend.created_at.desc())
+        select(AICharacter)
+        .where(AICharacter.user_id == current_user_id)
+        .order_by(AICharacter.created_at.desc())
     )
     result = await session.execute(statement)
-    boyfriends = result.scalars().all()
+    characters = result.scalars().all()
     
-    return boyfriends
+    return characters
 
 
-@app.get("/boyfriends/{boyfriend_id}", response_model=BoyfriendRead, tags=["Boyfriends"])
-async def get_boyfriend(
-    boyfriend_id: uuid.UUID,
+@app.get("/ai-characters/{character_id}", response_model=AICharacterRead, tags=["AI Characters"])
+async def get_ai_character(
+    character_id: uuid.UUID,
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session)
 ):
-    """Get a specific boyfriend by ID."""
-    statement = select(Boyfriend).where(
-        Boyfriend.id == boyfriend_id,
-        Boyfriend.user_id == current_user_id
+    """Get a specific AI character by ID."""
+    statement = select(AICharacter).where(
+        AICharacter.id == character_id,
+        AICharacter.user_id == current_user_id
     )
     result = await session.execute(statement)
-    boyfriend = result.scalar_one_or_none()
+    character = result.scalar_one_or_none()
     
-    if not boyfriend:
+    if not character:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Boyfriend not found or access denied"
+            detail="AI Character not found or access denied"
         )
     
-    return boyfriend
+    return character
 
 
-@app.delete("/boyfriends/{boyfriend_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Boyfriends"])
-async def delete_boyfriend(
-    boyfriend_id: uuid.UUID,
+@app.delete("/ai-characters/{character_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["AI Characters"])
+async def delete_ai_character(
+    character_id: uuid.UUID,
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session)
 ):
-    """Delete a boyfriend and all associated chat sessions."""
-    statement = select(Boyfriend).where(
-        Boyfriend.id == boyfriend_id,
-        Boyfriend.user_id == current_user_id
+    """Delete an AI character and all associated chat sessions."""
+    statement = select(AICharacter).where(
+        AICharacter.id == character_id,
+        AICharacter.user_id == current_user_id
     )
     result = await session.execute(statement)
-    boyfriend = result.scalar_one_or_none()
+    character = result.scalar_one_or_none()
     
-    if not boyfriend:
+    if not character:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Boyfriend not found or access denied"
+            detail="AI Character not found or access denied"
         )
     
     # Delete associated chat sessions first
-    chat_statement = select(ChatSession).where(ChatSession.boyfriend_id == boyfriend_id)
+    chat_statement = select(ChatSession).where(ChatSession.ai_character_id == character_id)
     chat_result = await session.execute(chat_statement)
     for chat in chat_result.scalars().all():
         await session.delete(chat)
     
-    await session.delete(boyfriend)
+    await session.delete(character)
     await session.commit()
 
 
@@ -313,32 +313,32 @@ async def delete_boyfriend(
 # CHAT ENDPOINTS (Protected)
 # ============================================
 @app.post("/chat", response_model=ChatResponse, tags=["Chat"])
-async def chat_with_boyfriend(
+async def chat_with_ai_character(
     chat_request: ChatRequest,
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Send a message to your AI boyfriend and receive a response.
+    Send a message to your AI character and receive a response.
     
-    - **boyfriend_id**: ID of the boyfriend to chat with
+    - **ai_character_id**: ID of the AI character to chat with
     - **message**: Your message
     - **session_id**: Optional - continue existing chat session
     
-    Security: Verifies that the boyfriend belongs to the current user.
+    Security: Verifies that the AI character belongs to the current user.
     """
-    # Verify boyfriend ownership (SECURITY: users can't chat with others' boyfriends)
-    boyfriend_statement = select(Boyfriend).where(
-        Boyfriend.id == chat_request.boyfriend_id,
-        Boyfriend.user_id == current_user_id
+    # Verify AI character ownership (SECURITY: users can't chat with others' characters)
+    character_statement = select(AICharacter).where(
+        AICharacter.id == chat_request.ai_character_id,
+        AICharacter.user_id == current_user_id
     )
-    result = await session.execute(boyfriend_statement)
-    boyfriend = result.scalar_one_or_none()
+    result = await session.execute(character_statement)
+    character = result.scalar_one_or_none()
     
-    if not boyfriend:
+    if not character:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Boyfriend not found or access denied"
+            detail="AI Character not found or access denied"
         )
     
     # Get or create chat session
@@ -347,14 +347,14 @@ async def chat_with_boyfriend(
     if chat_request.session_id:
         session_statement = select(ChatSession).where(
             ChatSession.id == chat_request.session_id,
-            ChatSession.boyfriend_id == boyfriend.id
+            ChatSession.ai_character_id == character.id
         )
         result = await session.execute(session_statement)
         chat_session = result.scalar_one_or_none()
     
     if not chat_session:
         chat_session = ChatSession(
-            boyfriend_id=boyfriend.id,
+            ai_character_id=character.id,
             title=chat_request.message[:50] + "..." if len(chat_request.message) > 50 else chat_request.message,
             history=[]
         )
@@ -365,9 +365,9 @@ async def chat_with_boyfriend(
     # Generate AI response
     ai_response = await ai_client.generate_response(
         message=chat_request.message,
-        boyfriend_name=boyfriend.name,
-        gender=boyfriend.gender,
-        system_prompt=boyfriend.system_prompt,
+        character_name=character.name,
+        gender=character.gender,
+        system_prompt=character.system_prompt,
         chat_history=chat_session.history
     )
     
@@ -393,7 +393,7 @@ async def chat_with_boyfriend(
     
     return ChatResponse(
         session_id=chat_session.id,
-        boyfriend_id=boyfriend.id,
+        ai_character_id=character.id,
         user_message=chat_request.message,
         ai_response=ai_response
     )
@@ -401,39 +401,39 @@ async def chat_with_boyfriend(
 
 @app.get("/chat/sessions", response_model=List[ChatSessionRead], tags=["Chat"])
 async def list_chat_sessions(
-    boyfriend_id: Optional[uuid.UUID] = None,
+    ai_character_id: Optional[uuid.UUID] = None,
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session)
 ):
     """
     List chat sessions for the current user.
     
-    - **boyfriend_id**: Optional filter by specific boyfriend
+    - **ai_character_id**: Optional filter by specific AI character
     """
-    # Get all boyfriend IDs for the current user
-    boyfriend_statement = select(Boyfriend.id).where(Boyfriend.user_id == current_user_id)
-    result = await session.execute(boyfriend_statement)
-    user_boyfriend_ids = [row[0] for row in result.all()]
+    # Get all AI character IDs for the current user
+    character_statement = select(AICharacter.id).where(AICharacter.user_id == current_user_id)
+    result = await session.execute(character_statement)
+    user_character_ids = [row[0] for row in result.all()]
     
-    if not user_boyfriend_ids:
+    if not user_character_ids:
         return []
     
     # Build chat session query
-    if boyfriend_id:
-        if boyfriend_id not in user_boyfriend_ids:
+    if ai_character_id:
+        if ai_character_id not in user_character_ids:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Boyfriend not found or access denied"
+                detail="AI Character not found or access denied"
             )
         session_statement = (
             select(ChatSession)
-            .where(ChatSession.boyfriend_id == boyfriend_id)
+            .where(ChatSession.ai_character_id == ai_character_id)
             .order_by(ChatSession.updated_at.desc())
         )
     else:
         session_statement = (
             select(ChatSession)
-            .where(ChatSession.boyfriend_id.in_(user_boyfriend_ids))
+            .where(ChatSession.ai_character_id.in_(user_character_ids))
             .order_by(ChatSession.updated_at.desc())
         )
     
@@ -461,15 +461,15 @@ async def get_chat_session(
             detail="Chat session not found"
         )
     
-    # Verify ownership through boyfriend
-    boyfriend_statement = select(Boyfriend).where(
-        Boyfriend.id == chat_session.boyfriend_id,
-        Boyfriend.user_id == current_user_id
+    # Verify ownership through AI character
+    character_statement = select(AICharacter).where(
+        AICharacter.id == chat_session.ai_character_id,
+        AICharacter.user_id == current_user_id
     )
-    result = await session.execute(boyfriend_statement)
-    boyfriend = result.scalar_one_or_none()
+    result = await session.execute(character_statement)
+    character = result.scalar_one_or_none()
     
-    if not boyfriend:
+    if not character:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this chat session"
@@ -496,15 +496,15 @@ async def delete_chat_session(
             detail="Chat session not found"
         )
     
-    # Verify ownership through boyfriend
-    boyfriend_statement = select(Boyfriend).where(
-        Boyfriend.id == chat_session.boyfriend_id,
-        Boyfriend.user_id == current_user_id
+    # Verify ownership through AI character
+    character_statement = select(AICharacter).where(
+        AICharacter.id == chat_session.ai_character_id,
+        AICharacter.user_id == current_user_id
     )
-    result = await session.execute(boyfriend_statement)
-    boyfriend = result.scalar_one_or_none()
+    result = await session.execute(character_statement)
+    character = result.scalar_one_or_none()
     
-    if not boyfriend:
+    if not character:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this chat session"
