@@ -60,7 +60,7 @@ def compute_age_from_birth_dict(birth_data: dict) -> Optional[int]:
             return None
         
         birthdate = datetime(year, month, day)
-        today = datetime.now(timezone.utc).replace(tzinfo=None)
+        today = utc_now()
         
         # Check if birthdate is in the future
         if birthdate > today:
@@ -441,7 +441,7 @@ async def chat_with_ai_character(
     })
     
     chat_session.history = updated_history
-    chat_session.updated_at = datetime.utcnow()
+    chat_session.updated_at = utc_now()
     
     session.add(chat_session)
     await session.commit()
