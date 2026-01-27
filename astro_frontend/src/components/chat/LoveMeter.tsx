@@ -2,6 +2,24 @@ import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Shared status emoji mapping to avoid duplication
+const STATUS_EMOJI: Record<string, string> = {
+  Bored: "😑",
+  Annoyed: "😒",
+  Distracted: "🙄",
+  Neutral: "😐",
+  Curious: "🤔",
+  Intrigued: "😏",
+  Interested: "😊",
+  Amused: "😄",
+  Flirty: "😘",
+  Smitten: "😍",
+  Obsessed: "🥵",
+};
+
+const getStatusEmoji = (statusLabel: string) =>
+  STATUS_EMOJI[statusLabel] || "💭";
+
 interface LoveMeterProps {
   score: number; // 0-100
   status: string; // e.g., "Intrigued", "Bored"
@@ -49,24 +67,6 @@ export function LoveMeter({
   
   // Heartbeat animation speed based on score (faster = more interested)
   const heartbeatDuration = Math.max(0.3, 1.5 - (clampedScore / 100) * 1.2);
-  
-  // Get status emoji based on common statuses
-  const getStatusEmoji = (statusLabel: string) => {
-    const statusMap: Record<string, string> = {
-      "Bored": "😑",
-      "Annoyed": "😒",
-      "Distracted": "🙄",
-      "Neutral": "😐",
-      "Curious": "🤔",
-      "Intrigued": "😏",
-      "Interested": "😊",
-      "Amused": "😄",
-      "Flirty": "😘",
-      "Smitten": "😍",
-      "Obsessed": "🥵",
-    };
-    return statusMap[statusLabel] || "💭";
-  };
 
   const isVertical = variant === "vertical";
   
@@ -202,23 +202,6 @@ export function LoveMeterCompact({
 }) {
   const clampedScore = Math.max(0, Math.min(100, score));
   const heartbeatDuration = Math.max(0.3, 1.5 - (clampedScore / 100) * 1.2);
-  
-  const getStatusEmoji = (statusLabel: string) => {
-    const statusMap: Record<string, string> = {
-      "Bored": "😑",
-      "Annoyed": "😒",
-      "Distracted": "🙄",
-      "Neutral": "😐",
-      "Curious": "🤔",
-      "Intrigued": "😏",
-      "Interested": "😊",
-      "Amused": "😄",
-      "Flirty": "😘",
-      "Smitten": "😍",
-      "Obsessed": "🥵",
-    };
-    return statusMap[statusLabel] || "💭";
-  };
 
   return (
     <div className={cn("flex items-center gap-2", className)}>

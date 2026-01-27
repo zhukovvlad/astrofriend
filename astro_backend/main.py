@@ -428,6 +428,17 @@ async def chat_with_ai_character(
         relationship_score=character.relationship_score
     )
     
+    # Re-fetch character with row lock to prevent lost updates on concurrent chats
+    # This ensures that if two users chat with the same character simultaneously,
+    # score changes won't overwrite each other (lost update problem)
+    character_lock_statement = (
+        select(AICharacter)
+        .where(AICharacter.id == character.id)
+        .with_for_update()
+    )
+    result = await session.execute(character_lock_statement)
+    character = result.scalar_one()
+    
     # Calculate new relationship score (clamped between 0-100)
     new_score = max(0, min(100, character.relationship_score + ai_response.score_change))
     

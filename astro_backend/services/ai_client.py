@@ -243,7 +243,6 @@ INSTRUCTIONS:
         message: str,
         character_name: str,
         gender: str = "male",
-        system_prompt: Optional[str] = None,
         chat_history: Optional[List[dict]] = None,
         astro_profile: Optional[str] = None,
         age: Optional[int] = None,
@@ -255,7 +254,7 @@ INSTRUCTIONS:
         Returns:
             CharacterResponse with reply_text, score_change, internal_thought, and status_label
         """
-        # Always rebuild system prompt to include current relationship score
+        # Build system prompt with current relationship score
         final_system_prompt = self._build_system_prompt(
             character_name, 
             gender, 
@@ -357,27 +356,23 @@ INSTRUCTIONS:
                 status_label=response_data.get("status_label", "Neutral")
             )
             
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON response for {character_name}: {e}")
+        except json.JSONDecodeError:
+            logger.exception(f"Failed to parse JSON response for {character_name}")
             return fallback_response
             
-        except TimeoutError as e:
-            # Network timeout - safe to retry
-            logger.error(f"Timeout generating AI response for {character_name}: {e}")
+        except TimeoutError:
+            logger.exception(f"Timeout generating AI response for {character_name}")
             return fallback_response
             
-        except (ConnectionError, OSError) as e:
-            # Network/connection issues - temporary, safe fallback
-            logger.error(f"Network error generating AI response for {character_name}: {e}")
+        except (ConnectionError, OSError):
+            logger.exception(f"Network error generating AI response for {character_name}")
             return fallback_response
             
-        except ValueError as e:
-            # Invalid input/config - log with context and return fallback
+        except ValueError:
             logger.exception(f"Invalid configuration for AI generation (character: {character_name})")
             return fallback_response
             
-        except Exception as e:
-            # Unexpected errors - log full stack trace
+        except Exception:
             logger.exception(f"Unexpected error generating AI response for {character_name}")
             return fallback_response
 

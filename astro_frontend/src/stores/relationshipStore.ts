@@ -10,6 +10,8 @@ interface RelationshipData {
 interface RelationshipState {
   // Map of character_id -> relationship data
   characters: Record<string, RelationshipData>;
+  // Map of character_id -> timeout ID for clearing score change
+  scoreChangeTimeouts: Record<string, ReturnType<typeof setTimeout>>;
 }
 
 interface RelationshipActions {
@@ -53,8 +55,15 @@ export const useRelationshipStore = create<
   persist(
     (set, get) => ({
       characters: {},
+      scoreChangeTimeouts: {},
 
       updateFromResponse: (characterId, score, status, scoreChange) => {
+        // Clear any existing timeout for this character to prevent race conditions
+        const existingTimeout = get().scoreChangeTimeouts[characterId];
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+        }
+
         set((state) => ({
           characters: {
             ...state.characters,
@@ -66,10 +75,17 @@ export const useRelationshipStore = create<
           },
         }));
 
-        // Auto-clear score change after 3 seconds (for animation)
-        setTimeout(() => {
+        // Schedule auto-clear after 3 seconds and store the timeout ID
+        const timeoutId = setTimeout(() => {
           get().clearScoreChange(characterId);
         }, 3000);
+
+        set((state) => ({
+          scoreChangeTimeouts: {
+            ...state.scoreChangeTimeouts,
+            [characterId]: timeoutId,
+          },
+        }));
       },
       
       initFromCharacter: (characterId, score, status) => {
@@ -94,9 +110,19 @@ export const useRelationshipStore = create<
       },
 
       clearScoreChange: (characterId) => {
+        // Clear the timeout reference
+        const timeoutId = get().scoreChangeTimeouts[characterId];
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
         set((state) => {
           const character = state.characters[characterId];
           if (!character) return state;
+
+          // Remove timeout reference
+          const { [characterId]: _, ...remainingTimeouts } = state.scoreChangeTimeouts;
+
           return {
             characters: {
               ...state.characters,
@@ -105,28 +131,43 @@ export const useRelationshipStore = create<
                 lastScoreChange: 0,
               },
             },
+            scoreChangeTimeouts: remainingTimeouts,
           };
         });
       },
 
       resetCharacter: (characterId) => {
+        // Clear any pending timeout
+        const timeoutId = get().scoreChangeTimeouts[characterId];
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
         set((state) => {
           const newCharacters = { ...state.characters };
           delete newCharacters[characterId];
-          return { characters: newCharacters };
+
+          const newTimeouts = { ...state.scoreChangeTimeouts };
+          delete newTimeouts[characterId];
+
+          return {
+            characters: newCharacters,
+            scoreChangeTimeouts: newTimeouts,
+          };
         });
       },
     }),
     {
       name: "astro-relationships",
       partialize: (state) => ({
-        // Only persist essential data, not lastScoreChange
+        // Only persist characters data, not timeouts or lastScoreChange
         characters: Object.fromEntries(
           Object.entries(state.characters).map(([id, data]) => [
             id,
             { ...data, lastScoreChange: 0 },
           ])
         ),
+        // Don't persist timeouts - they'll be stale on reload
       }),
     }
   )

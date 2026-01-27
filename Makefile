@@ -1,4 +1,4 @@
-.PHONY: help install install-backend install-frontend venv backend frontend dev clean db-init test test-backend
+.PHONY: help install install-backend install-frontend venv backend frontend dev clean db-init db-reset db-migrate db-rollback test test-backend
 
 # Detect Python executable from venv (absolute path from project root)
 PROJECT_ROOT := $(shell pwd)
@@ -21,6 +21,9 @@ help:
 	@echo "  make install-backend  - Install backend dependencies"
 	@echo "  make install-frontend - Install frontend dependencies"
 	@echo "  make db-init          - Initialize database"
+	@echo "  make db-reset         - Reset DB (drop + recreate + migrate)"
+	@echo "  make db-migrate       - Apply DB migrations"
+	@echo "  make db-rollback      - Roll back last migration"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev              - Run both backend and frontend servers"
@@ -74,6 +77,10 @@ db-init:
 
 db-reset:
 	@echo "🗑️  Resetting database (drop + recreate + migrate)..."
+	@if [ "$(CONFIRM)" != "1" ]; then \
+		echo "⚠️  Refusing to reset DB without CONFIRM=1. Use: make db-reset CONFIRM=1"; \
+		exit 1; \
+	fi
 	@docker exec astro_postgres psql -U postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'astro_db' AND pid <> pg_backend_pid();" || true
 	@docker exec astro_postgres psql -U postgres -c "DROP DATABASE IF EXISTS astro_db;"
 	@docker exec astro_postgres psql -U postgres -c "CREATE DATABASE astro_db;"
