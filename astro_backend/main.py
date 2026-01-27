@@ -416,13 +416,16 @@ async def chat_with_ai_character(
     # Calculate age from birth_data
     age = compute_age_from_birth_dict(character.birth_data)
     
-    # Generate AI response
+    # Generate AI response (regenerate system_prompt with current age)
+    # We pass system_prompt=None to force _build_system_prompt to be called with current age
+    astro_profile = await ai_client.generate_astro_profile(character.birth_data)
     ai_response = await ai_client.generate_response(
         message=chat_request.message,
         character_name=character.name,
         gender=character.gender,
-        system_prompt=character.system_prompt,
+        system_prompt=None,  # Force regeneration with current age
         chat_history=chat_session.history,
+        astro_profile=astro_profile,
         age=age
     )
     
