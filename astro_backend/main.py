@@ -3,7 +3,7 @@ Astro-Soulmate: FastAPI Main Application
 Complete API with Auth, AI Characters, and Chat endpoints
 """
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 import uuid
 
@@ -20,7 +20,8 @@ from models import (
     AICharacter, AICharacterCreate, AICharacterRead,
     ChatSession, ChatSessionCreate, ChatSessionRead,
     ChatRequest, ChatResponse,
-    Token
+    Token,
+    utc_now
 )
 from services.auth import (
     hash_password,
@@ -31,6 +32,52 @@ from services.auth import (
     clear_auth_cookie
 )
 from services.ai_client import ai_client
+
+
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
+def compute_age_from_birth_dict(birth_data: dict) -> Optional[int]:
+    """
+    Compute age from birth data dictionary using full birthdate.
+    
+    Args:
+        birth_data: Dictionary containing 'year', 'month', 'day' keys
+        
+    Returns:
+        Age in years if valid, None if invalid or future date
+    """
+    if not birth_data:
+        return None
+    
+    try:
+        year = int(birth_data.get("year", 0))
+        month = int(birth_data.get("month", 1))
+        day = int(birth_data.get("day", 1))
+        
+        # Validate date components
+        if year <= 0 or month < 1 or month > 12 or day < 1 or day > 31:
+            return None
+        
+        birthdate = datetime(year, month, day)
+        today = utc_now()
+        
+        # Check if birthdate is in the future
+        if birthdate > today:
+            return None
+        
+        # Calculate age considering full birthdate
+        age = today.year - birthdate.year
+        
+        # Adjust if birthday hasn't occurred yet this year
+        if (today.month, today.day) < (birthdate.month, birthdate.day):
+            age -= 1
+        
+        # Return None for negative ages (shouldn't happen with future date check, but safety)
+        return age if age >= 0 else None
+        
+    except (ValueError, TypeError, KeyError):
+        return None
 
 
 # ============================================
@@ -212,11 +259,15 @@ async def create_ai_character(
     birth_dict = character_data.birth_data.model_dump()
     astro_profile = await ai_client.generate_astro_profile(birth_dict)
     
+    # Calculate age from birth_data
+    age = compute_age_from_birth_dict(birth_dict)
+    
     # Build system prompt with astro personality and gender
     system_prompt = ai_client._build_system_prompt(
         character_name=character_data.name,
         gender=character_data.gender or "male",
-        astro_profile=astro_profile
+        astro_profile=astro_profile,
+        age=age
     )
     
     # Create AI character
@@ -362,17 +413,24 @@ async def chat_with_ai_character(
         await session.commit()
         await session.refresh(chat_session)
     
-    # Generate AI response
+    # Calculate age from birth_data
+    age = compute_age_from_birth_dict(character.birth_data)
+    
+    # Generate AI response (regenerate system_prompt with current age)
+    # We pass system_prompt=None to force _build_system_prompt to be called with current age
+    astro_profile = await ai_client.generate_astro_profile(character.birth_data)
     ai_response = await ai_client.generate_response(
         message=chat_request.message,
         character_name=character.name,
         gender=character.gender,
-        system_prompt=character.system_prompt,
-        chat_history=chat_session.history
+        system_prompt=None,  # Force regeneration with current age
+        chat_history=chat_session.history,
+        astro_profile=astro_profile,
+        age=age
     )
     
     # Update chat history
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = utc_now().isoformat()
     updated_history = list(chat_session.history) if chat_session.history else []
     updated_history.append({
         "role": "user",
@@ -386,7 +444,7 @@ async def chat_with_ai_character(
     })
     
     chat_session.history = updated_history
-    chat_session.updated_at = datetime.utcnow()
+    chat_session.updated_at = utc_now()
     
     session.add(chat_session)
     await session.commit()
