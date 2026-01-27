@@ -416,18 +416,20 @@ async def chat_with_ai_character(
     # Calculate age from birth_data
     age = compute_age_from_birth_dict(character.birth_data)
     
-    # Generate AI response (regenerate system_prompt with current age)
-    # We pass system_prompt=None to force _build_system_prompt to be called with current age
+    # Generate AI response with current relationship score (from character, not session)
     astro_profile = await ai_client.generate_astro_profile(character.birth_data)
     ai_response = await ai_client.generate_response(
         message=chat_request.message,
         character_name=character.name,
         gender=character.gender,
-        system_prompt=None,  # Force regeneration with current age
         chat_history=chat_session.history,
         astro_profile=astro_profile,
-        age=age
+        age=age,
+        relationship_score=character.relationship_score
     )
+    
+    # Calculate new relationship score (clamped between 0-100)
+    new_score = max(0, min(100, character.relationship_score + ai_response.score_change))
     
     # Update chat history
     timestamp = utc_now().isoformat()
@@ -439,21 +441,32 @@ async def chat_with_ai_character(
     })
     updated_history.append({
         "role": "assistant", 
-        "content": ai_response,
+        "content": ai_response.reply_text,
         "timestamp": timestamp
     })
     
+    # Update chat session history
     chat_session.history = updated_history
     chat_session.updated_at = utc_now()
-    
     session.add(chat_session)
+    
+    # Update character's relationship state (applies to ALL chats with this character)
+    character.relationship_score = new_score
+    character.current_status = ai_response.status_label
+    character.updated_at = utc_now()
+    session.add(character)
+    
     await session.commit()
     
     return ChatResponse(
         session_id=chat_session.id,
         ai_character_id=character.id,
         user_message=chat_request.message,
-        ai_response=ai_response
+        ai_response=ai_response.reply_text,
+        relationship_score=new_score,
+        current_status=ai_response.status_label,
+        score_change=ai_response.score_change,
+        internal_thought=ai_response.internal_thought  # Can be filtered for non-premium users
     )
 
 

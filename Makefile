@@ -72,6 +72,24 @@ db-init:
 	@cd astro_backend && $(VENV_PYTHON) -c "from database import init_db; import asyncio; asyncio.run(init_db())"
 	@echo "✅ Database initialized!"
 
+db-reset:
+	@echo "🗑️  Resetting database (drop + recreate + migrate)..."
+	@docker exec astro_postgres psql -U postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'astro_db' AND pid <> pg_backend_pid();" || true
+	@docker exec astro_postgres psql -U postgres -c "DROP DATABASE IF EXISTS astro_db;"
+	@docker exec astro_postgres psql -U postgres -c "CREATE DATABASE astro_db;"
+	@cd astro_backend && $(VENV_PYTHON) -m alembic upgrade head
+	@echo "✅ Database reset complete!"
+
+db-migrate:
+	@echo "📦 Running database migrations..."
+	@cd astro_backend && $(VENV_PYTHON) -m alembic upgrade head
+	@echo "✅ Migrations applied!"
+
+db-rollback:
+	@echo "⏪ Rolling back last migration..."
+	@cd astro_backend && $(VENV_PYTHON) -m alembic downgrade -1
+	@echo "✅ Rollback complete!"
+
 # ============================================
 # DEVELOPMENT SERVERS
 # ============================================
