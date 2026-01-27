@@ -1,4 +1,4 @@
-.PHONY: help install install-backend install-frontend venv backend frontend dev clean db-init db-reset db-migrate db-rollback test test-backend
+.PHONY: all help install install-backend install-frontend venv backend frontend dev clean db-init db-reset db-migrate db-rollback test test-backend
 
 # Detect Python executable from venv (absolute path from project root)
 PROJECT_ROOT := $(shell pwd)
@@ -12,6 +12,8 @@ VENV_PYTHON := $(shell \
 	fi)
 
 # Default target
+all: help
+
 help:
 	@echo "🌟 Astro-Soulmate Development Commands"
 	@echo ""

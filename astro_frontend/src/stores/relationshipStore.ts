@@ -159,7 +159,7 @@ export const useRelationshipStore = create<
     }),
     {
       name: "astro-relationships",
-      partialize: (state) => ({
+      partialize: (state): Pick<RelationshipState, 'characters'> => ({
         // Only persist characters data, not timeouts or lastScoreChange
         characters: Object.fromEntries(
           Object.entries(state.characters).map(([id, data]) => [

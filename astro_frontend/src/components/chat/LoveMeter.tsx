@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -103,19 +103,22 @@ export function LoveMeter({
         />
         
         {/* Score change indicator */}
-        {scoreChange !== 0 && (
-          <motion.span
-            className={cn(
-              "absolute -top-2 -right-2 text-xs font-bold",
-              scoreChange > 0 ? "text-green-400" : "text-red-400"
-            )}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            {scoreChange > 0 ? `+${scoreChange}` : scoreChange}
-          </motion.span>
-        )}
+        <AnimatePresence>
+          {scoreChange !== 0 && (
+            <motion.span
+              key={scoreChange}
+              className={cn(
+                "absolute -top-2 -right-2 text-xs font-bold",
+                scoreChange > 0 ? "text-green-400" : "text-red-400"
+              )}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              {scoreChange > 0 ? `+${scoreChange}` : scoreChange}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Progress Bar */}
@@ -123,7 +126,7 @@ export function LoveMeter({
         className={cn(
           "relative rounded-full overflow-hidden",
           getTrackColor(clampedScore),
-          isVertical ? "w-3 h-24" : "h-3 flex-1 min-w-25"
+          isVertical ? "w-3 h-24" : "h-3 flex-1 min-w-24"
         )}
       >
         <motion.div
@@ -216,9 +219,11 @@ export function LoveMeterCompact({
         <Heart
           className={cn(
             "w-4 h-4",
-            clampedScore < 30 && "text-blue-400",
-            clampedScore >= 30 && clampedScore < 60 && "text-pink-400",
-            clampedScore >= 60 && "text-red-400"
+            clampedScore < 20 && "text-blue-400",
+            clampedScore >= 20 && clampedScore < 40 && "text-purple-400",
+            clampedScore >= 40 && clampedScore < 60 && "text-pink-400",
+            clampedScore >= 60 && clampedScore < 80 && "text-rose-400",
+            clampedScore >= 80 && "text-red-400"
           )}
           fill={clampedScore >= 50 ? "currentColor" : "none"}
         />

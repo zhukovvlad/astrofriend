@@ -469,6 +469,15 @@ async def chat_with_ai_character(
     
     await session.commit()
     
+    # Fetch current user to check premium status
+    user_statement = select(User).where(User.id == current_user_id)
+    user_result = await session.execute(user_statement)
+    current_user = user_result.scalar_one()
+    
+    # Only include internal_thought for premium users
+    # TODO: Add is_premium field to User model when implementing premium features
+    is_premium = getattr(current_user, 'is_premium', False)  # Default to False if field doesn't exist yet
+    
     return ChatResponse(
         session_id=chat_session.id,
         ai_character_id=character.id,
@@ -477,7 +486,7 @@ async def chat_with_ai_character(
         relationship_score=new_score,
         current_status=ai_response.status_label,
         score_change=ai_response.score_change,
-        internal_thought=ai_response.internal_thought  # Can be filtered for non-premium users
+        internal_thought=ai_response.internal_thought if is_premium else None
     )
 
 
