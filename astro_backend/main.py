@@ -440,7 +440,10 @@ async def chat_with_ai_character(
     character = result.scalar_one()
     
     # Calculate new relationship score (clamped between 0-100)
-    new_score = max(0, min(100, character.relationship_score + ai_response.score_change))
+    # Treat None as 0 to prevent TypeError
+    current_score = character.relationship_score if character.relationship_score is not None else 0
+    score_delta = ai_response.score_change if ai_response.score_change is not None else 0
+    new_score = max(0, min(100, current_score + score_delta))
     
     # Update chat history
     timestamp = utc_now().isoformat()
@@ -472,7 +475,13 @@ async def chat_with_ai_character(
     # Fetch current user to check premium status
     user_statement = select(User).where(User.id == current_user_id)
     user_result = await session.execute(user_statement)
-    current_user = user_result.scalar_one()
+    current_user = user_result.scalar_one_or_none()
+    
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
     
     # Only include internal_thought for premium users
     # TODO: Add is_premium field to User model when implementing premium features
