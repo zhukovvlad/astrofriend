@@ -40,12 +40,15 @@ def upgrade() -> None:
     sa.Column('birth_data', sa.JSON(), nullable=True),
     sa.Column('system_prompt', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('avatar_url', sqlmodel.sql.sqltypes.AutoString(length=500), nullable=True),
+    sa.Column('relationship_score', sa.Integer(), nullable=False, server_default='50'),
+    sa.Column('current_status', sqlmodel.sql.sqltypes.AutoString(length=50), nullable=False, server_default='Neutral'),
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.CheckConstraint('relationship_score >= 0 AND relationship_score <= 100', name='ck_ai_characters_relationship_score_range')
     )
     op.create_index(op.f('ix_ai_characters_name'), 'ai_characters', ['name'], unique=False)
     op.create_index(op.f('ix_ai_characters_user_id'), 'ai_characters', ['user_id'], unique=False)

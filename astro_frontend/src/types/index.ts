@@ -40,6 +40,8 @@ export interface AICharacter {
   birth_data: BirthData;
   system_prompt?: string | null;
   avatar_url?: string | null;
+  relationship_score: number;
+  current_status: string;
   created_at: string;
 }
 
@@ -82,6 +84,10 @@ export interface ChatResponse {
   ai_character_id: string;
   user_message: string;
   ai_response: string;
+  relationship_score: number;
+  current_status: string;
+  score_change: number;
+  internal_thought?: string;
 }
 
 // ============================================
