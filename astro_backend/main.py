@@ -392,6 +392,18 @@ async def chat_with_ai_character(
             detail="AI Character not found or access denied"
         )
     
+    # Fetch current user early to validate existence and check premium status
+    # Done before generating AI response and committing to avoid inconsistent 404
+    user_statement = select(User).where(User.id == current_user_id)
+    user_result = await session.execute(user_statement)
+    current_user = user_result.scalar_one_or_none()
+    
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
     # Get or create chat session
     chat_session: Optional[ChatSession] = None
     
@@ -416,6 +428,9 @@ async def chat_with_ai_character(
     # Calculate age from birth_data
     age = compute_age_from_birth_dict(character.birth_data)
     
+    # Coerce relationship_score to int with default to prevent passing None
+    score = character.relationship_score if character.relationship_score is not None else 50
+    
     # Generate AI response with current relationship score (from character, not session)
     astro_profile = await ai_client.generate_astro_profile(character.birth_data)
     ai_response = await ai_client.generate_response(
@@ -425,7 +440,7 @@ async def chat_with_ai_character(
         chat_history=chat_session.history,
         astro_profile=astro_profile,
         age=age,
-        relationship_score=character.relationship_score
+        relationship_score=score
     )
     
     # Re-fetch character with row lock to prevent lost updates on concurrent chats
@@ -471,17 +486,6 @@ async def chat_with_ai_character(
     session.add(character)
     
     await session.commit()
-    
-    # Fetch current user to check premium status
-    user_statement = select(User).where(User.id == current_user_id)
-    user_result = await session.execute(user_statement)
-    current_user = user_result.scalar_one_or_none()
-    
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
     
     # Only include internal_thought for premium users
     # TODO: Add is_premium field to User model when implementing premium features
