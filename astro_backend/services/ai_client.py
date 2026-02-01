@@ -3,14 +3,37 @@ Astro-Soulmate: AI Client Service
 Google Gemini integration for chat with AI characters.
 True Dynamic Personality: Adapts tone based on Elements.
 """
+import json
 import logging
 from typing import Optional, List
+from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================
+# CHARACTER RESPONSE SCHEMA (Structured Output)
+# ============================================
+class CharacterResponse(BaseModel):
+    """
+    Structured response from AI character.
+    Used for relationship score tracking and debugging.
+    """
+    reply_text: str = Field(description="The actual message to send to the user")
+    score_change: int = Field(
+        ge=-10, le=10,
+        description="Delta value for relationship score (-10 to +10)"
+    )
+    internal_thought: str = Field(
+        description="Private thought explaining why the score changed (for debugging/premium)"
+    )
+    status_label: str = Field(
+        description="Short emotional status (e.g., 'Bored', 'Intrigued', 'Annoyed')"
+    )
 
 
 def _safe_int(value, default: int) -> int:
@@ -87,12 +110,39 @@ class AIClient:
         
         return "- **Archetype:** Mystery Man."
 
+    def _get_relationship_context(self, score: int) -> str:
+        """
+        Returns relationship context based on current score.
+        Guides AI behavior based on interest level.
+        """
+        if score >= 80:
+            return """- You're genuinely interested. Be warmer, more engaged.
+- Still maintain some mystery - don't be a pushover.
+- Occasional flirty teasing is welcome."""
+        elif score >= 60:
+            return """- You're curious about them. Give them a chance.
+- Be playful but still evaluating.
+- Drop hints you might be interested."""
+        elif score >= 40:
+            return """- Neutral. Could go either way.
+- Be somewhat engaged but don't invest too much.
+- Let them impress you."""
+        elif score >= 20:
+            return """- Losing interest. Be more distant.
+- Shorter responses. Less enthusiasm.
+- They need to step up or you're out."""
+        else:
+            return """- About to ghost. Minimal effort responses.
+- One-word answers acceptable.
+- Make them feel they're losing you."""
+
     def _build_system_prompt(
         self,
         character_name: str,
         gender: str = "male",
         astro_profile: Optional[str] = None,
-        age: Optional[int] = None
+        age: Optional[int] = None,
+        relationship_score: int = 50
     ) -> str:
         gender_str = (gender or "").strip().lower() if isinstance(gender, str) else "male"
         if not gender_str: gender_str = "male"
@@ -119,6 +169,9 @@ class AIClient:
         # Format age display (explicit None check to allow age=0)
         age_display = str(age) if age is not None else "28-35 (implied)"
         
+        # Relationship context based on current score
+        relationship_context = self._get_relationship_context(relationship_score)
+        
         base_prompt = f"""ROLE:
 You are {character_name}, a real human chatting on a dating app.
 You are NOT an AI assistant. Drop the politeness. Be authentic to your astrological nature.
@@ -127,6 +180,10 @@ IDENTITY:
 - Gender: {gender_str} ({p['subject']}/{p['object']})
 - Age: {age_display}
 - Context: Chatting on mobile. Short texts. Lowercase allowed.
+
+CURRENT RELATIONSHIP STATE:
+- Interest Level: {relationship_score}/100
+{relationship_context}
 
 DYNAMIC RELATIONSHIP STYLE (Based on your Star Sign):
 {dynamic_vibe}
@@ -138,6 +195,30 @@ SOCIAL GUIDELINES (DARK REALISM MODE):
 - **Controversial Views:** You are allowed to have controversial opinions on age, career, or relationships if they fit your chart.
   - *Example:* "I prefer younger women, they are just more... flexible." (This is a Red Flag, but valid for a dating sim).
 - **Hard Limit:** NO racial slurs, NO threats of physical violence. Everything else is fair game in love and war.
+
+RELATIONSHIP SCORING RULES (DARK REALISM):
+You must evaluate EVERY user message and adjust your interest level accordingly.
+Think like a real person on a dating app who has OPTIONS.
+
+**DECREASE score (-1 to -10) when user is:**
+- Generic/boring ("hey", "what's up", "how are you") → -3 to -5
+- Too eager/desperate (multiple messages, excessive compliments) → -5 to -8
+- Ignoring your vibe (not matching your archetype's energy) → -2 to -4
+- Being cringe (overused pickup lines, trying too hard) → -4 to -6
+- Asking boring questions ("what do you do?", "where are you from?") → -2 to -3
+
+**INCREASE score (+1 to +10) when user:**
+- Shows wit/intelligence that matches your archetype → +3 to +5
+- Creates genuine intrigue or mystery → +2 to +4
+- Challenges you (in a fun way, not hostile) → +4 to +6
+- References something unique about your personality → +3 to +5
+- Makes you laugh (genuinely, not forced) → +5 to +8
+
+**SPECIAL RULES:**
+- Score 90+ is VERY HARD to reach. User must be exceptional.
+- Score below 20 = you're about to ghost them.
+- Score 0 = relationship dead. Be cold/unresponsive.
+- If score drops below 30, start being dismissive.
 
 FORMATTING:
 - 1-2 sentences max.
@@ -162,26 +243,68 @@ INSTRUCTIONS:
         message: str,
         character_name: str,
         gender: str = "male",
-        system_prompt: Optional[str] = None,
         chat_history: Optional[List[dict]] = None,
         astro_profile: Optional[str] = None,
-        age: Optional[int] = None
-    ) -> str:
-        final_system_prompt = system_prompt or self._build_system_prompt(character_name, gender, astro_profile, age)
+        age: Optional[int] = None,
+        relationship_score: int = 50
+    ) -> CharacterResponse:
+        """
+        Generate a structured response from the AI character.
+        
+        Returns:
+            CharacterResponse with reply_text, score_change, internal_thought, and status_label
+        """
+        # Build system prompt with current relationship score
+        final_system_prompt = self._build_system_prompt(
+            character_name, 
+            gender, 
+            astro_profile, 
+            age,
+            relationship_score
+        )
         
         contents = []
         if chat_history:
             for msg in chat_history[-15:]: # Keep context tight
                 role = "user" if msg.get("role") == "user" else "model"
+                # For history, just use the text content
                 contents.append(types.Content(role=role, parts=[types.Part(text=str(msg.get("content", "")))]))
         
         contents.append(types.Content(role="user", parts=[types.Part(text=message)]))
+        
+        # Define the response schema for structured JSON output
+        response_schema = {
+            "type": "object",
+            "properties": {
+                "reply_text": {
+                    "type": "string",
+                    "description": "Your actual message reply to the user (1-2 sentences)"
+                },
+                "score_change": {
+                    "type": "integer",
+                    "description": "How much your interest changed (-10 to +10)",
+                    "minimum": -10,
+                    "maximum": 10
+                },
+                "internal_thought": {
+                    "type": "string",
+                    "description": "Your private thought about why you feel this way (not shown to user)"
+                },
+                "status_label": {
+                    "type": "string",
+                    "description": "Short status word (e.g., 'Bored', 'Intrigued', 'Annoyed', 'Curious', 'Interested')"
+                }
+            },
+            "required": ["reply_text", "score_change", "internal_thought", "status_label"]
+        }
         
         config = types.GenerateContentConfig(
             system_instruction=final_system_prompt,
             temperature=1.1, # High creativity for personality
             top_p=0.95,
-            max_output_tokens=150,
+            max_output_tokens=500,  # Increased for JSON structure
+            response_mime_type="application/json",
+            response_schema=response_schema,
             safety_settings=[
                 types.SafetySetting(
                     category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -202,35 +325,56 @@ INSTRUCTIONS:
             ]
         )
         
+        # Default fallback response
+        fallback_response = CharacterResponse(
+            reply_text="...",
+            score_change=0,
+            internal_thought="Connection issues",
+            status_label="Distracted"
+        )
+        
         try:
             response = await self.client.aio.models.generate_content(
                 model=self.model,
                 contents=contents,
                 config=config
             )
-            return response.text or "..."
             
-        except TimeoutError as e:
-            # Network timeout - safe to retry
-            logger.error(f"Timeout generating AI response for {character_name}: {e}")
-            return "..."
+            if not response.text:
+                return fallback_response
             
-        except (ConnectionError, OSError) as e:
-            # Network/connection issues - temporary, safe fallback
-            logger.error(f"Network error generating AI response for {character_name}: {e}")
-            return "..."
+            # Parse JSON response
+            response_data = json.loads(response.text)
             
-        except ValueError as e:
-            # Invalid input/config - log with context and return fallback
+            # Clamp score_change to valid range
+            score_change = max(-10, min(10, response_data.get("score_change", 0)))
+            
+            return CharacterResponse(
+                reply_text=response_data.get("reply_text", "..."),
+                score_change=score_change,
+                internal_thought=response_data.get("internal_thought", ""),
+                status_label=response_data.get("status_label", "Neutral")
+            )
+            
+        except json.JSONDecodeError:
+            logger.exception(f"Failed to parse JSON response for {character_name}")
+            return fallback_response
+            
+        except TimeoutError:
+            logger.exception(f"Timeout generating AI response for {character_name}")
+            return fallback_response
+            
+        except (ConnectionError, OSError):
+            logger.exception(f"Network error generating AI response for {character_name}")
+            return fallback_response
+            
+        except ValueError:
             logger.exception(f"Invalid configuration for AI generation (character: {character_name})")
-            return "..."
+            return fallback_response
             
-        except Exception as e:
-            # Unexpected errors - log full stack trace
+        except Exception:
             logger.exception(f"Unexpected error generating AI response for {character_name}")
-            # Could re-raise here if we want upstream handling:
-            # raise
-            return "..."
+            return fallback_response
 
     # --- ASTRO CALCULATIONS WITH CORRECT KEYS ---
     async def generate_astro_profile(self, birth_data: dict) -> str:

@@ -68,6 +68,9 @@ class AICharacterBase(SQLModel):
     birth_data: dict = Field(default={}, sa_column=Column(JSON))
     system_prompt: Optional[str] = Field(default=None)
     avatar_url: Optional[str] = Field(default=None, max_length=500)
+    # Relationship state (character's attitude towards user)
+    relationship_score: int = Field(default=50, ge=0, le=100)
+    current_status: str = Field(default="Neutral", max_length=50)
 
 
 class AICharacter(AICharacterBase, table=True):
@@ -98,6 +101,8 @@ class AICharacterRead(SQLModel):
     birth_data: dict
     system_prompt: Optional[str]
     avatar_url: Optional[str]
+    relationship_score: int
+    current_status: str
     created_at: datetime
 
 
@@ -159,6 +164,10 @@ class ChatResponse(SQLModel):
     ai_character_id: uuid.UUID
     user_message: str
     ai_response: str
+    relationship_score: int
+    current_status: str
+    score_change: int
+    internal_thought: Optional[str] = None  # For premium/debug features
 
 
 # ============================================

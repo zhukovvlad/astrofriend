@@ -12,6 +12,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAICharacter } from "@/hooks/useAICharacters";
 import { useChatSessions, useSendMessage } from "@/hooks/useChat";
+import { LoveMeterCompact, LoveMeter } from "@/components/chat/LoveMeter";
+import { useCharacterRelationship, useInitRelationship } from "@/stores/relationshipStore";
 import type { ChatMessage } from "@/types";
 
 // Typing indicator component
@@ -113,6 +115,10 @@ export default function Chat() {
   const { data: sessions } = useChatSessions(characterId);
   const sendMessage = useSendMessage();
   
+  // Relationship state (tied to CHARACTER, not session)
+  const relationship = useCharacterRelationship(characterId);
+  const initRelationship = useInitRelationship();
+  
   const [message, setMessage] = useState("");
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -122,6 +128,13 @@ export default function Chat() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync relationship state from server when character loads
+  useEffect(() => {
+    if (character) {
+      initRelationship(character.id, character.relationship_score, character.current_status);
+    }
+  }, [character, initRelationship]);
 
   // Get current session's messages with deduplication
   const currentSession = sessions?.find(s => s.id === currentSessionId);
@@ -270,8 +283,22 @@ export default function Chat() {
             
             <div>
               <h1 className="font-semibold">{character.name}</h1>
-              <p className="text-xs text-muted-foreground">Online</p>
+              {/* Compact LoveMeter replaces "Online" status */}
+              <LoveMeterCompact 
+                score={relationship.score} 
+                status={relationship.status}
+              />
             </div>
+          </div>
+          
+          {/* Full LoveMeter bar (hidden on mobile) */}
+          <div className="hidden md:block flex-1 max-w-xs mx-4">
+            <LoveMeter
+              score={relationship.score}
+              status={relationship.status}
+              scoreChange={relationship.lastScoreChange}
+              showStatus={true}
+            />
           </div>
           
           <Button

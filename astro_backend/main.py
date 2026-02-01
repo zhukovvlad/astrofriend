@@ -392,6 +392,18 @@ async def chat_with_ai_character(
             detail="AI Character not found or access denied"
         )
     
+    # Fetch current user early to validate existence and check premium status
+    # Done before generating AI response and committing to avoid inconsistent 404
+    user_statement = select(User).where(User.id == current_user_id)
+    user_result = await session.execute(user_statement)
+    current_user = user_result.scalar_one_or_none()
+    
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
     # Get or create chat session
     chat_session: Optional[ChatSession] = None
     
@@ -416,18 +428,37 @@ async def chat_with_ai_character(
     # Calculate age from birth_data
     age = compute_age_from_birth_dict(character.birth_data)
     
-    # Generate AI response (regenerate system_prompt with current age)
-    # We pass system_prompt=None to force _build_system_prompt to be called with current age
+    # Coerce relationship_score to int with default to prevent passing None
+    score = character.relationship_score if character.relationship_score is not None else 50
+    
+    # Generate AI response with current relationship score (from character, not session)
     astro_profile = await ai_client.generate_astro_profile(character.birth_data)
     ai_response = await ai_client.generate_response(
         message=chat_request.message,
         character_name=character.name,
         gender=character.gender,
-        system_prompt=None,  # Force regeneration with current age
         chat_history=chat_session.history,
         astro_profile=astro_profile,
-        age=age
+        age=age,
+        relationship_score=score
     )
+    
+    # Re-fetch character with row lock to prevent lost updates on concurrent chats
+    # This ensures that if two users chat with the same character simultaneously,
+    # score changes won't overwrite each other (lost update problem)
+    character_lock_statement = (
+        select(AICharacter)
+        .where(AICharacter.id == character.id)
+        .with_for_update()
+    )
+    result = await session.execute(character_lock_statement)
+    character = result.scalar_one()
+    
+    # Calculate new relationship score (clamped between 0-100)
+    # Treat None as 0 to prevent TypeError
+    current_score = character.relationship_score if character.relationship_score is not None else 0
+    score_delta = ai_response.score_change if ai_response.score_change is not None else 0
+    new_score = max(0, min(100, current_score + score_delta))
     
     # Update chat history
     timestamp = utc_now().isoformat()
@@ -439,21 +470,36 @@ async def chat_with_ai_character(
     })
     updated_history.append({
         "role": "assistant", 
-        "content": ai_response,
+        "content": ai_response.reply_text,
         "timestamp": timestamp
     })
     
+    # Update chat session history
     chat_session.history = updated_history
     chat_session.updated_at = utc_now()
-    
     session.add(chat_session)
+    
+    # Update character's relationship state (applies to ALL chats with this character)
+    character.relationship_score = new_score
+    character.current_status = ai_response.status_label
+    character.updated_at = utc_now()
+    session.add(character)
+    
     await session.commit()
+    
+    # Only include internal_thought for premium users
+    # TODO: Add is_premium field to User model when implementing premium features
+    is_premium = getattr(current_user, 'is_premium', False)  # Default to False if field doesn't exist yet
     
     return ChatResponse(
         session_id=chat_session.id,
         ai_character_id=character.id,
         user_message=chat_request.message,
-        ai_response=ai_response
+        ai_response=ai_response.reply_text,
+        relationship_score=new_score,
+        current_status=ai_response.status_label,
+        score_change=ai_response.score_change,
+        internal_thought=ai_response.internal_thought if is_premium else None
     )
 
 
